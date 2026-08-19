@@ -1,0 +1,18 @@
+/* v1 final visual QA polish: keep the crowded central Wano front readable. */
+.stronghold > svg{
+  transform:scale(.76);
+  transform-box:fill-box;
+  transform-origin:center;
+}
+.stronghold-halo{
+  transform:scale(.80);
+  transform-box:fill-box;
+  transform-origin:center;
+}
+.stronghold-name{font-size:1.62px;letter-spacing:-.02em}
+.garrison{font-size:1.38px}
+.route{stroke-width:.34;opacity:.58}
+@media(max-width:1100px){
+  .stronghold-name{font-size:1.54px}
+  .garrison{font-size:1.28px}
+}
