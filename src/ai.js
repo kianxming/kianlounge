@@ -4,7 +4,7 @@ import {
   isHostile, moveArmy, neighbors, path, produce, recruit, recruitPrisoner, rng, setDiplomacy, trade
 } from './world.js';
 
-export const AI_PLANNING_INTERVAL_MINUTES = 60;
+export const AI_PLANNING_INTERVAL_MINUTES = 45;
 
 const LEADERS = {
   straw_hat:'luffy', beasts:'kaido', kozuki:'momonosuke', kurozumi:'orochi',
