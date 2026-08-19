@@ -35,6 +35,25 @@ test('seven unattended days are more active than the v1.0 cadence',()=>{
   assert.ok(Object.values(s.stats.aiByFaction||{}).filter(x=>x.total>=5).length>=3,'several factions should remain strategically active');
 });
 
+test('AI remains strategically active in the second half of a 30-day campaign',()=>{
+  const s=createInitialState(919191);
+  for(let i=0;i<15*48;i++)step(s,30);
+  const ordersAtMidpoint=s.stats.aiOrders;
+  const battlesAtMidpoint=s.stats.battlesResolved;
+  for(let i=0;i<15*48;i++)step(s,30);
+  const lateOrders=s.stats.aiOrders-ordersAtMidpoint;
+  const lateBattles=s.stats.battlesResolved-battlesAtMidpoint;
+  assert.ok(lateOrders>=60,`AI burned out after the opening: only ${lateOrders} orders during days 16-30`);
+  assert.ok(lateBattles>=1,`no autonomous battle resolved during days 16-30`);
+  assert.ok(Object.values(s.armies).filter(a=>a.troops<400&&a.status==='waiting'&&s.strongholds[a.location]?.owner===a.factionId).length<=2,'exhausted friendly armies should not permanently consume command slots');
+});
+
+test('city economy can recover on the scale of campaign days rather than weeks',()=>{
+  const sim=fs.readFileSync(new URL('../src/simulation.js',import.meta.url),'utf8');
+  assert.match(sim,/const dailyMoney=45\+h\.development\*\(1\.85\+govBonus\*\.75\)/);
+  assert.match(sim,/const dailyFood=70\+h\.development\*\(2\.1\+logBonus\*\.8\)-Math\.ceil\(h\.troops\/200\)/);
+});
+
 test('balanced tactical armies do not resolve in the opening seconds',()=>{
   const s=createInitialState(778899);
   s.armies.test_a={id:'test_a',factionId:'straw_hat',commanderId:'luffy',deputyId:null,troops:2200,food:900,morale:100,location:'kibi_camp',status:'battle'};
@@ -65,5 +84,6 @@ test('phone density layer keeps visual strongholds small while preserving hit-ta
   assert.match(css,/@media\(max-width:600px\)/);
   assert.match(css,/\.stronghold > svg\{transform:scale\(\.49\)/);
   assert.match(css,/\.garrison\{display:none\}/);
+  assert.match(css,/#strategy-map\{width:min\(128vw,500px\);min-width:460px/);
   assert.match(css,/\.context\{position:relative;display:block;max-height:43dvh/);
 });
