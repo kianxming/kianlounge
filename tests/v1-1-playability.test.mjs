@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createInitialState } from '../src/world.js';
+import { createInitialState, pairKey } from '../src/world.js';
 import { getFactionAIProfile, runStrategicAI, AI_PLANNING_INTERVAL_MINUTES } from '../src/ai.js';
 import { createTacticalState, tickTactical, runAutoBattle } from '../src/tactical.js';
-import { step } from '../src/simulation.js';
+import { step, updateDiplomaticTimers, TRUCE_DURATION_MINUTES } from '../src/simulation.js';
 
 const campaignSnapshot=s=>Object.fromEntries(['beasts','kozuki','kurozumi','heart','kid','big_mom'].map(fid=>{
   const hs=Object.values(s.strongholds).filter(h=>h.owner===fid);
@@ -41,6 +41,19 @@ test('one AI planning cycle can issue multiple orders across the world',()=>{
   const before=s.stats.aiOrders;
   runStrategicAI(s);
   assert.ok(s.stats.aiOrders-before>=4,`expected multiple AI orders, got ${s.stats.aiOrders-before}`);
+});
+
+test('temporary truces expire and reopen strategic frontiers',()=>{
+  const s=createInitialState(313131);
+  const k=pairKey('beasts','heart');
+  s.diplomacy[k]={status:'truce',trust:63,since:0};
+  s.elapsedMinutes=TRUCE_DURATION_MINUTES-30;
+  updateDiplomaticTimers(s);
+  assert.equal(s.diplomacy[k].status,'truce');
+  s.elapsedMinutes=TRUCE_DURATION_MINUTES;
+  updateDiplomaticTimers(s);
+  assert.equal(s.diplomacy[k].status,'neutral');
+  assert.equal(s.diplomacy[k].since,TRUCE_DURATION_MINUTES);
 });
 
 test('seven unattended days are more active than the v1.0 cadence',()=>{
