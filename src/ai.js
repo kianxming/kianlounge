@@ -57,6 +57,12 @@ function frontlineInfo(s,h,fid){
   return {hostile,enemyTroops,frontline:hostile.length>0};
 }
 
+function declareWarForAttack(s,fid,targetFaction){
+  if(!targetFaction||targetFaction===fid)return;
+  const d=diplomacyStatus(s,fid,targetFaction);
+  if(d.status==='neutral')setDiplomacy(s,fid,targetFaction,'war',fid);
+}
+
 function cleanupExhaustedArmies(s,fid){
   let cleaned=0;
   for(const a of activeArmies(s,fid)){
@@ -136,7 +142,11 @@ function maneuverAction(s,fid,p){
     }
   }
   direct.sort((a,b)=>b.score-a.score);
-  if(direct[0]?.score>=30)return moveArmy(s,direct[0].army.id,direct[0].target.id);
+  if(direct[0]?.score>=30){
+    const moved=moveArmy(s,direct[0].army.id,direct[0].target.id);
+    if(moved)declareWarForAttack(s,fid,direct[0].target.owner);
+    return moved;
+  }
 
   const fronts=factionHoldings(s,fid).filter(h=>frontlineInfo(s,h,fid).frontline);
   const reposition=[];
@@ -157,7 +167,9 @@ function militaryAction(s,fid,p){
   const c=attackCandidates(s,fid,p)[0];
   if(!c||c.score<42)return false;
   const food=Math.min(900,round100(Math.max(500,c.base.food*.12)));
-  return Boolean(createArmy(s,{factionId:fid,origin:c.base.id,destination:c.target.id,commanderId:c.lead.id,troops:c.troops,food}));
+  const id=createArmy(s,{factionId:fid,origin:c.base.id,destination:c.target.id,commanderId:c.lead.id,troops:c.troops,food});
+  if(id)declareWarForAttack(s,fid,c.target.owner);
+  return Boolean(id);
 }
 
 function defenseAction(s,fid,p){
