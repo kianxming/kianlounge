@@ -32,8 +32,10 @@ jobs:
         with:
           ref: feature/wano-web-vertical-slice
 
-      - name: Configure Pages
+      - name: Configure and enable Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Validate prototype
         run: |
