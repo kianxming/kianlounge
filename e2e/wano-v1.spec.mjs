@@ -78,6 +78,10 @@ test.describe('와노 전란기 v1 실제 사용자 흐름', () => {
     await page.getByRole('button',{name:'자동 전투로 전환'}).click();
     await expect(page.getByText('실시간 전술 전투',{exact:true})).toHaveCount(0);
 
+    // 동적으로 생성된 사건 기록에서도 지명/인물명은 한국어로 보인다.
+    const feedText=await page.locator('.feed').innerText();
+    expect(feedText).not.toMatch(/Flower Capital|Mogura Port|Itachi Port|Tokage Port|Monkey D\. Luffy|Eustass Kid|Straw Hats|Kurozumi|Onigashima/);
+
     expect(errors,`브라우저 콘솔 오류: ${errors.join('\n')}`).toEqual([]);
     await page.screenshot({path:`test-results/${testInfo.project.name}-v1.png`,fullPage:true});
   });
