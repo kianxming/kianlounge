@@ -5,7 +5,6 @@ import { bind } from './ui.js';
 
 const root=document.querySelector('#app');
 let state=createInitialState(20260819);
-state.version='1.0.0';
 state.uiNotice={text:'와노 전란기 v1에 오신 것을 환영합니다. 지도에서 거점을 한 번 클릭해 명령을 시작하세요.',tone:'info',stamp:Date.now()};
 let selected={type:'stronghold',id:'kibi_camp'};
 let selectedTactical=null;
@@ -34,13 +33,12 @@ function load(){
     const raw=localStorage.getItem(saveKey);
     if(!raw)throw Error('저장된 v1 세이브가 없습니다.');
     state=deserialize(raw);
-    state.version='1.0.0';
     selected={type:'stronghold',id:'kibi_camp'};
     selectedTactical=null;
     event(state,'World state loaded.','system');
     state.uiNotice={text:'저장된 세계 상태를 불러왔습니다.',tone:'success',stamp:Date.now()};
   }catch(err){
-    state.uiNotice={text:err.message,tone:'warning',stamp:Date.now()};
+    state.uiNotice={text:err.message==='Incompatible or invalid save data.'?'저장 데이터가 현재 게임 상태와 호환되지 않습니다.':err.message,tone:'warning',stamp:Date.now()};
   }
   draw();
 }
