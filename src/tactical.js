@@ -95,12 +95,12 @@ function useSkill(s,t,u,target,skillId){
   for(const e of targets){
     const pressure=(.70+rng(s)*.20)*(1+Math.sqrt(Math.max(0,u.troops))/180);
     const raw=perf.power*(sk.troopBias||1)*pressure*.62;
-    const casualtyCap=Math.max(40,e.troops*(sk.ultimate?.09:.07));
+    const casualtyCap=Math.max(40,e.troops*(sk.ultimate ? .09 : .07));
     const troopLoss=Math.max(30,Math.min(round10(raw),round10(casualtyCap)));
     e.troops=Math.max(0,e.troops-troopLoss);
     e.morale=Math.max(0,e.morale-Math.max(2,Math.round((perf.morale||perf.power/22)*.72)));
     if(e.officerId){
-      const hpRaw=perf.power*(sk.troopBias>1?.035:.065);
+      const hpRaw=perf.power*(sk.troopBias>1 ? .035 : .065);
       e.hp=Math.max(0,e.hp-Math.max(2,Math.min(sk.ultimate?14:9,Math.round(hpRaw))));
       if(e.hp<=0)e.incapacitated=true;
     }
