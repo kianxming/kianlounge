@@ -1,5 +1,5 @@
-# validation-candidate: 3e26e84cefcfd8b4b0106e39cc87dad053c538ec
-name: Wano v1 validation and GitHub Pages
+# validation-candidate: v1.1-playability
+name: Wano v1.1 validation and GitHub Pages
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Wano v1 feature branch
+      - name: Checkout Wano feature branch
         uses: actions/checkout@v4
         with:
           ref: feature/wano-web-vertical-slice
@@ -54,7 +54,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/wano-pages-preview-status.txt
           if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Record Wano v1 validation start"
+            git commit -m "[skip ci] Record Wano v1.1 validation start"
             git push origin HEAD:main
           fi
 
@@ -66,6 +66,7 @@ jobs:
           set -euo pipefail
           node --check src/data.js
           node --check src/world.js
+          node --check src/ai.js
           node --check src/tactical.js
           node --check src/simulation.js
           node --check src/i18n.js
@@ -80,14 +81,14 @@ jobs:
       - name: Install Playwright test runner
         run: npm install --no-save @playwright/test@latest
 
-      - name: Run desktop and tablet E2E in runner Chrome
+      - name: Run desktop, tablet and iPhone-size E2E in runner Chrome
         run: npm run test:e2e
 
-      - name: Upload v1 E2E screenshots and traces
+      - name: Upload v1.1 E2E screenshots and traces
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wano-v1-e2e
+          name: wano-v1-1-e2e
           path: test-results
           if-no-files-found: warn
           retention-days: 7
@@ -97,11 +98,13 @@ jobs:
           set -euo pipefail
           rm -rf _site
           mkdir -p _site
-          cp index.html styles.css v1-polish.css _site/
+          cp index.html styles.css v1-polish.css v1-1.css _site/
           cp -R src assets _site/
           touch _site/.nojekyll
           test -f _site/index.html
           test -f _site/src/main.js
+          test -f _site/src/ai.js
+          test -f _site/v1-1.css
           test -f _site/assets/wano-map.svg
           test ! -e _site/node_modules
           test ! -e _site/test-results
@@ -112,7 +115,7 @@ jobs:
         with:
           path: _site
 
-      - name: Deploy v1 preview
+      - name: Deploy v1.1 preview
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -128,6 +131,6 @@ jobs:
           printf 'status=success\npage_url=%s\nfeature_sha=%s\nrun_id=%s\n' "$PAGE_URL" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/wano-pages-preview-status.txt
           git add .github/wano-pages-preview-status.txt
           if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Record Wano v1 Pages deployment"
+            git commit -m "[skip ci] Record Wano v1.1 Pages deployment"
             git push origin HEAD:main
           fi
