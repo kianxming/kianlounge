@@ -5,6 +5,7 @@ import {
 } from './world.js';
 
 export const AI_PLANNING_INTERVAL_MINUTES = 45;
+export const MIN_WAR_BEFORE_TRUCE_MINUTES = 1440;
 
 const LEADERS = {
   straw_hat:'luffy', beasts:'kaido', kozuki:'momonosuke', kurozumi:'orochi',
@@ -61,6 +62,15 @@ function declareWarForAttack(s,fid,targetFaction){
   if(!targetFaction||targetFaction===fid)return;
   const d=diplomacyStatus(s,fid,targetFaction);
   if(d.status==='neutral')setDiplomacy(s,fid,targetFaction,'war',fid);
+}
+
+function hasActiveOffensive(s,a,b){
+  return Object.values(s.armies).some(army=>{
+    if(![a,b].includes(army.factionId)||!['moving','battle'].includes(army.status))return false;
+    const opponent=army.factionId===a?b:a;
+    const target=s.strongholds[army.destination]||s.strongholds[army.location];
+    return target?.owner===opponent;
+  });
 }
 
 function cleanupExhaustedArmies(s,fid){
@@ -255,6 +265,9 @@ function diplomacyAction(s,fid,p){
   const own=factionHoldings(s,fid).reduce((n,h)=>n+h.troops,0);
   const wars=FACTIONS.filter(f=>f.id!==fid&&diplomacyStatus(s,fid,f.id).status==='war');
   for(const enemy of wars){
+    const d=diplomacyStatus(s,fid,enemy.id);
+    if(s.elapsedMinutes-(d.since||0)<MIN_WAR_BEFORE_TRUCE_MINUTES)continue;
+    if(hasActiveOffensive(s,fid,enemy.id))continue;
     const theirs=factionHoldings(s,enemy.id).reduce((n,h)=>n+h.troops,0);
     const danger=theirs/Math.max(1,own);
     const desire=p.caution*.55+p.diplomacy*.35-(p.aggression*.30);
