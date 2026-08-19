@@ -119,7 +119,6 @@ function maneuverAction(s,fid,p){
   direct.sort((a,b)=>b.score-a.score);
   if(direct[0]?.score>=30)return moveArmy(s,direct[0].army.id,direct[0].target.id);
 
-  // A finished campaign should not leave an army idle forever. Reposition to the nearest friendly frontline.
   const fronts=factionHoldings(s,fid).filter(h=>frontlineInfo(s,h,fid).frontline);
   const reposition=[];
   for(const army of waiting){
@@ -148,6 +147,19 @@ function defenseAction(s,fid,p){
     .sort((a,b)=>b.score-a.score);
   const c=choices[0];if(!c||c.h.troops>=Math.max(2200,c.enemyTroops*.72))return false;
   return recruit(s,c.h.id,500,fid);
+}
+
+function mobilizationAction(s,fid,p){
+  const choices=factionHoldings(s,fid).map(h=>{
+    const front=frontlineInfo(s,h,fid);
+    const desired=front.frontline
+      ? 2600+Math.round(p.caution*900+p.aggression*500)
+      : 1500+Math.round(p.aggression*1100+p.caution*450);
+    return {h,front,desired,gap:desired-h.troops};
+  }).filter(x=>x.gap>=400&&x.h.money>=350&&x.h.food>=250)
+    .sort((a,b)=>(b.gap+(b.front.frontline?700:0))-(a.gap+(a.front.frontline?700:0)));
+  const c=choices[0];
+  return c?recruit(s,c.h.id,500,fid):false;
 }
 
 function logisticsAction(s,fid,p){
@@ -189,6 +201,8 @@ function economyAction(s,fid,p){
   if(foodRisk&&p.logistics>=.45&&produce(s,foodRisk.id,fid))return true;
   const buy=hs.filter(h=>h.food<1100&&h.money>1500).sort((a,b)=>a.food-b.food)[0];
   if(buy&&trade(s,buy.id,'buy_food',500,fid))return true;
+  const surplus=hs.filter(h=>h.food>6500&&h.money<1400).sort((a,b)=>b.food-a.food)[0];
+  if(surplus&&trade(s,surplus.id,'sell_food',500,fid))return true;
   const dev=hs.filter(h=>h.money>=500&&h.development<h.cap).sort((a,b)=>(a.development/a.cap)-(b.development/b.cap))[0];
   if(dev&&p.development>.25&&develop(s,dev.id,fid))return true;
   return false;
@@ -225,6 +239,7 @@ function actionUtilities(s,fid,p){
   return [
     {kind:'defense',score:(frontline?52:12)+p.caution*24,run:()=>defenseAction(s,fid,p)},
     {kind:'military',score:(frontline?42:28)+p.aggression*42+p.opportunism*12+((armyRoom||maneuverable)?12:-35),run:()=>militaryAction(s,fid,p)},
+    {kind:'mobilization',score:28+p.aggression*25+p.caution*12+(frontline?10:0),run:()=>mobilizationAction(s,fid,p)},
     {kind:'logistics',score:(lowFood?48:16)+p.logistics*36,run:()=>logisticsAction(s,fid,p)},
     {kind:'administration',score:(missingAdmin?54:5)+p.development*18+p.logistics*12,run:()=>administrationAction(s,fid)},
     {kind:'economy',score:25+p.development*35+(lowFood?12:0),run:()=>economyAction(s,fid,p)},
@@ -236,7 +251,7 @@ function actionUtilities(s,fid,p){
 function recordAIAction(s,fid,kind){
   s.stats.aiOrders++;
   s.stats.aiByFaction ||= {};
-  const row=s.stats.aiByFaction[fid] ||= {total:0,military:0,defense:0,logistics:0,administration:0,economy:0,prisoner:0,diplomacy:0};
+  const row=s.stats.aiByFaction[fid] ||= {total:0,military:0,defense:0,mobilization:0,logistics:0,administration:0,economy:0,prisoner:0,diplomacy:0};
   row.total++;
   row[kind]=(row[kind]||0)+1;
 }
