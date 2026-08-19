@@ -1,19 +1,50 @@
-import { createArmy, createTransport, develop, disband, moveArmy, recruit, setPlayerFaction } from './world.js';
-
-const num=(form,name)=>Number(new FormData(form).get(name)||0);
-const val=(form,name)=>String(new FormData(form).get(name)||'');
-
-export function bind(root,getState,setSelected,rerender,save,load){
+import { assignOfficerRole, createArmy, createTransport, develop, diplomaticTransferPrisoner, discoverFruit, disband, equipSkill, equipWeapon, exchangePrisoners, executePrisoner, giveFruit, mergeArmies, moveArmy, negotiateCharacterTransfer, negotiateFruitTransfer, produce, recruit, recruitPrisoner, releasePrisoner, sendAid, setDiplomacy, setPlayerFaction, splitArmy, trade, trainCharacter, trainFruitMastery, trainHaki, unlockHakiTechnique, confiscatePrisonerWeapons } from './world.js';
+import { beginManualBattle, setBattleAuto } from './simulation.js';
+import { issueOrder } from './tactical.js';
+const fd=f=>new FormData(f),num=(form,name)=>Number(fd(form).get(name)||0),val=(form,name)=>String(fd(form).get(name)||'');
+export function bind(root,getState,setSelected,getSelectedTactical,setSelectedTactical,rerender,save,load){
+ const s=()=>getState();
  root.querySelectorAll('[data-select]').forEach(el=>el.addEventListener('click',()=>{setSelected({type:el.dataset.select,id:el.dataset.id});rerender()}));
- root.querySelector('[data-action="pause"]')?.addEventListener('click',()=>{getState().paused=!getState().paused;rerender()});
- root.querySelectorAll('[data-action="speed"]').forEach(el=>el.addEventListener('click',()=>{const s=getState();s.paused=false;s.speed=Number(el.dataset.speed);rerender()}));
- root.querySelector('[data-action="save"]')?.addEventListener('click',save);
- root.querySelector('[data-action="load"]')?.addEventListener('click',load);
- root.querySelector('#player-faction')?.addEventListener('change',e=>{setPlayerFaction(getState(),e.target.value);setSelected(null);rerender()});
- root.querySelectorAll('[data-action="develop"]').forEach(el=>el.addEventListener('click',()=>{develop(getState(),el.dataset.id);rerender()}));
- root.querySelectorAll('[data-action="recruit"]').forEach(el=>el.addEventListener('click',()=>{recruit(getState(),el.dataset.id,500);rerender()}));
- root.querySelectorAll('[data-action="disband"]').forEach(el=>el.addEventListener('click',()=>{const loc=getState().armies[el.dataset.id]?.location;if(disband(getState(),el.dataset.id))setSelected({type:'stronghold',id:loc});rerender()}));
- root.querySelector('form[data-form="army"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,id=createArmy(getState(),{origin:f.dataset.origin,destination:val(f,'destination'),commanderId:val(f,'commander'),deputyId:val(f,'deputy')||null,troops:num(f,'troops'),food:num(f,'food')});if(id)setSelected({type:'army',id});rerender()});
- root.querySelector('form[data-form="transport"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,id=createTransport(getState(),{origin:f.dataset.origin,destination:val(f,'destination'),commanderId:val(f,'commander'),cargo:{money:num(f,'money'),food:num(f,'food'),troops:num(f,'troops')}});if(id)setSelected({type:'transport',id});rerender()});
- root.querySelector('form[data-form="move-army"]')?.addEventListener('submit',e=>{e.preventDefault();moveArmy(getState(),e.currentTarget.dataset.id,val(e.currentTarget,'destination'));rerender()});
+ root.querySelectorAll('[data-action="open"]').forEach(el=>el.addEventListener('click',()=>{setSelected({type:el.dataset.type});rerender()}));
+ root.querySelector('[data-action="pause"]')?.addEventListener('click',()=>{s().paused=!s().paused;rerender()});
+ root.querySelectorAll('[data-action="speed"]').forEach(el=>el.addEventListener('click',()=>{s().paused=false;s().speed=Number(el.dataset.speed);rerender()}));
+ root.querySelector('[data-action="save"]')?.addEventListener('click',save);root.querySelector('[data-action="load"]')?.addEventListener('click',load);
+ root.querySelector('#player-faction')?.addEventListener('change',e=>{setPlayerFaction(s(),e.target.value);setSelected(null);rerender()});
+ root.querySelectorAll('[data-action="develop"]').forEach(el=>el.addEventListener('click',()=>{develop(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="recruit"]').forEach(el=>el.addEventListener('click',()=>{recruit(s(),el.dataset.id,500);rerender()}));
+ root.querySelectorAll('[data-action="produce"]').forEach(el=>el.addEventListener('click',()=>{produce(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="buy-food"]').forEach(el=>el.addEventListener('click',()=>{trade(s(),el.dataset.id,'buy_food',500);rerender()}));
+ root.querySelectorAll('[data-action="sell-food"]').forEach(el=>el.addEventListener('click',()=>{trade(s(),el.dataset.id,'sell_food',500);rerender()}));
+ root.querySelectorAll('[data-action="disband"]').forEach(el=>el.addEventListener('click',()=>{const loc=s().armies[el.dataset.id]?.location;if(disband(s(),el.dataset.id))setSelected({type:'stronghold',id:loc});rerender()}));
+ root.querySelectorAll('[data-action="train-stat"]').forEach(el=>el.addEventListener('click',()=>{trainCharacter(s(),el.dataset.id,el.dataset.stat);rerender()}));
+ root.querySelectorAll('[data-action="train-haki"]').forEach(el=>el.addEventListener('click',()=>{trainHaki(s(),el.dataset.id,el.dataset.line);rerender()}));
+ root.querySelectorAll('[data-action="train-fruit"]').forEach(el=>el.addEventListener('click',()=>{trainFruitMastery(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="unlock-haki"]').forEach(el=>el.addEventListener('click',()=>{unlockHakiTechnique(s(),el.dataset.id,el.dataset.line,el.dataset.technique);rerender()}));
+ root.querySelectorAll('[data-action="prisoner-recruit"]').forEach(el=>el.addEventListener('click',()=>{const p=s().officers[el.dataset.id],r=Object.values(s().officers).find(o=>o.faction===s().playerFaction&&o.status==='available'&&o.location===p.location);if(r)recruitPrisoner(s(),p.id,r.id);rerender()}));
+ root.querySelectorAll('[data-action="prisoner-release"]').forEach(el=>el.addEventListener('click',()=>{releasePrisoner(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="prisoner-execute"]').forEach(el=>el.addEventListener('click',()=>{executePrisoner(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="prisoner-confiscate"]').forEach(el=>el.addEventListener('click',()=>{confiscatePrisonerWeapons(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="prisoner-transfer"]').forEach(el=>el.addEventListener('click',()=>{const select=root.querySelector(`[data-prisoner-transfer="${el.dataset.id}"]`);diplomaticTransferPrisoner(s(),el.dataset.id,select?.value);rerender()}));
+ root.querySelectorAll('[data-action="fruit-discover"]').forEach(el=>el.addEventListener('click',()=>{discoverFruit(s(),el.dataset.id);rerender()}));
+ root.querySelectorAll('[data-action="fruit-give"]').forEach(el=>el.addEventListener('click',()=>{const select=root.querySelector(`[data-fruit-officer="${el.dataset.id}"]`);giveFruit(s(),el.dataset.id,select?.value);rerender()}));
+ root.querySelectorAll('[data-action="weapon-equip"]').forEach(el=>el.addEventListener('click',()=>{const select=root.querySelector(`[data-weapon-officer="${el.dataset.id}"]`);equipWeapon(s(),el.dataset.id,select?.value);rerender()}));
+ root.querySelectorAll('[data-action="diplomacy"]').forEach(el=>el.addEventListener('click',()=>{setDiplomacy(s(),s().playerFaction,el.dataset.target,el.dataset.status);rerender()}));
+ root.querySelectorAll('[data-action="manual-battle"]').forEach(el=>el.addEventListener('click',()=>{if(beginManualBattle(s(),el.dataset.id)){const b=s().battles[el.dataset.id],side=b.attackerFaction===s().playerFaction?'attacker':'defender',u=Object.values(b.tactical.units).find(x=>x.side===side);setSelectedTactical(u?.id||null)}rerender()}));
+ root.querySelectorAll('[data-action="auto-battle"]').forEach(el=>el.addEventListener('click',()=>{setBattleAuto(s(),el.dataset.id);setSelectedTactical(null);rerender()}));
+ root.querySelector('form[data-form="assign-officer"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget;assignOfficerRole(s(),f.dataset.origin,val(f,'role'),val(f,'officer'));rerender()});
+ root.querySelectorAll('form[data-form="equip-skill"]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();equipSkill(s(),f.dataset.id,Number(f.dataset.slot),val(f,'skill'));rerender()}));
+ root.querySelector('form[data-form="split-army"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,id=splitArmy(s(),f.dataset.id,{troops:num(f,'troops'),food:num(f,'food'),commanderId:val(f,'commander'),destination:val(f,'destination')});if(id)setSelected({type:'army',id});rerender()});
+ root.querySelector('form[data-form="merge-army"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget;mergeArmies(s(),f.dataset.id,val(f,'source'));rerender()});
+ root.querySelector('form[data-form="army"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,id=createArmy(s(),{origin:f.dataset.origin,destination:val(f,'destination'),commanderId:val(f,'commander'),deputyId:val(f,'deputy')||null,troops:num(f,'troops'),food:num(f,'food')});if(id)setSelected({type:'army',id});rerender()});
+ root.querySelector('form[data-form="transport"]')?.addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget,id=createTransport(s(),{origin:f.dataset.origin,destination:val(f,'destination'),commanderId:val(f,'commander'),cargo:{money:num(f,'money'),food:num(f,'food'),troops:num(f,'troops'),prisoners:val(f,'prisoner')?[val(f,'prisoner')]:[],devilFruits:val(f,'fruit')?[val(f,'fruit')]:[]}});if(id)setSelected({type:'transport',id});rerender()});
+ root.querySelector('form[data-form="move-army"]')?.addEventListener('submit',e=>{e.preventDefault();moveArmy(s(),e.currentTarget.dataset.id,val(e.currentTarget,'destination'));rerender()});
+ root.querySelectorAll('form[data-form="aid"]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();sendAid(s(),s().playerFaction,f.dataset.target,val(f,'fromStronghold'),val(f,'toStronghold'),{money:num(f,'money'),food:num(f,'food'),troops:num(f,'troops')});rerender()}));
+ root.querySelectorAll('form[data-form="character-transfer"]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();negotiateCharacterTransfer(s(),val(f,'officer'),f.dataset.target);rerender()}));
+ root.querySelectorAll('form[data-form="fruit-transfer"]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();negotiateFruitTransfer(s(),val(f,'fruit'),f.dataset.target);rerender()}));
+ root.querySelectorAll('form[data-form="prisoner-exchange"]').forEach(f=>f.addEventListener('submit',e=>{e.preventDefault();exchangePrisoners(s(),val(f,'theirs'),val(f,'ours'));rerender()}));
+ root.querySelectorAll('[data-tunit]').forEach(el=>el.addEventListener('click',()=>{setSelectedTactical(el.dataset.tunit);rerender()}));
+ root.querySelectorAll('[data-torder]').forEach(el=>el.addEventListener('click',()=>{const b=s().battles[s().activeManualBattleId];if(b)issueOrder(b.tactical,el.dataset.unit,el.dataset.torder);rerender()}));
+ root.querySelector('form[data-form="tattack"]')?.addEventListener('submit',e=>{e.preventDefault();const b=s().battles[s().activeManualBattleId];if(b)issueOrder(b.tactical,e.currentTarget.dataset.unit,'attack',{targetId:val(e.currentTarget,'target')});rerender()});
+ root.querySelector('form[data-form="tmove"]')?.addEventListener('submit',e=>{e.preventDefault();const b=s().battles[s().activeManualBattleId];if(b)issueOrder(b.tactical,e.currentTarget.dataset.unit,'move',{x:num(e.currentTarget,'x'),y:num(e.currentTarget,'y')});rerender()});
+ root.querySelectorAll('[data-tskill]').forEach(el=>el.addEventListener('click',()=>{const b=s().battles[s().activeManualBattleId];if(b)issueOrder(b.tactical,el.dataset.unit,'skill',{skillId:el.dataset.tskill,targetId:el.dataset.target});rerender()}));
 }
