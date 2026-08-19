@@ -20,12 +20,30 @@ test.describe('와노 전란기 v1.1 실제 사용자 흐름', () => {
     await expect(page.locator('.context h2')).toHaveText('키비 주둔지');
     await expect(page.getByText('현재 거점 인물',{exact:true})).toBeVisible();
 
-    // iPhone-size 환경에서는 지도와 선택 상세가 초기 화면 흐름 안에 압축되어 있어야 한다.
+    // iPhone-size 환경에서는 지도/패널이 압축되면서도 지도 자체는 더 넓게 펼쳐져 인접 거점이 덜 겹쳐야 한다.
     if(testInfo.project.name==='chrome-iphone'){
       const map=await page.locator('.map-wrap').boundingBox();
       const context=await page.locator('.context').boundingBox();
-      expect(map?.height||9999).toBeLessThanOrEqual(460);
-      expect(context?.y||9999).toBeLessThan(760);
+      expect(map?.height||9999).toBeLessThanOrEqual(430);
+      expect(context?.y||9999).toBeLessThan(800);
+      const mapMetrics=await page.locator('.map-wrap').evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,scrollLeft:el.scrollLeft}));
+      expect(mapMetrics.scrollWidth).toBeGreaterThan(mapMetrics.clientWidth+60);
+      expect(mapMetrics.scrollLeft).toBeGreaterThan(10);
+
+      const kibi=await page.locator('.stronghold-hit[data-id="kibi_camp"]').boundingBox();
+      const ebisu=await page.locator('.stronghold-hit[data-id="ebisu"]').boundingBox();
+      const kx=(kibi?.x||0)+(kibi?.width||0)/2,ky=(kibi?.y||0)+(kibi?.height||0)/2;
+      const ex=(ebisu?.x||0)+(ebisu?.width||0)/2,ey=(ebisu?.y||0)+(ebisu?.height||0)/2;
+      expect(Math.hypot(kx-ex,ky-ey)).toBeGreaterThan(40);
+
+      // 자동 세계 갱신이 DOM을 다시 그려도 사용자가 내려둔 명령 패널 scrollTop을 되돌리면 안 된다.
+      const panel=page.locator('.context');
+      await panel.evaluate(el=>{el.scrollTop=Math.min(180,Math.max(0,el.scrollHeight-el.clientHeight));document.querySelector('#app').dataset.interactionUntil='0'});
+      const scrollBefore=await panel.evaluate(el=>el.scrollTop);
+      expect(scrollBefore).toBeGreaterThan(20);
+      await page.waitForTimeout(1600);
+      const scrollAfter=await panel.evaluate(el=>el.scrollTop);
+      expect(scrollAfter).toBeGreaterThanOrEqual(scrollBefore-3);
     }
 
     // 내정 명령은 한 번 클릭으로 결과 피드백을 낸다.
