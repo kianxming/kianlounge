@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createInitialState, pairKey } from '../src/world.js';
+import { createInitialState, diplomacyStatus, isHostile, neighbors, pairKey } from '../src/world.js';
 import { getFactionAIProfile, runStrategicAI, AI_PLANNING_INTERVAL_MINUTES } from '../src/ai.js';
 import { createTacticalState, tickTactical, runAutoBattle } from '../src/tactical.js';
 import { step, updateDiplomaticTimers, TRUCE_DURATION_MINUTES } from '../src/simulation.js';
@@ -9,6 +9,8 @@ import { step, updateDiplomaticTimers, TRUCE_DURATION_MINUTES } from '../src/sim
 const campaignSnapshot=s=>Object.fromEntries(['beasts','kozuki','kurozumi','heart','kid','big_mom'].map(fid=>{
   const hs=Object.values(s.strongholds).filter(h=>h.owner===fid);
   const armies=Object.values(s.armies).filter(a=>a.factionId===fid);
+  const frontierEdges=hs.flatMap(h=>neighbors(h.id).map(id=>s.strongholds[id]).filter(x=>x.owner!==fid&&isHostile(s,fid,x.owner)).map(x=>`${h.id}->${x.id}:${x.owner}`));
+  const relations=['straw_hat','beasts','kozuki','kurozumi','heart','kid','big_mom'].filter(x=>x!==fid).map(x=>`${x}:${diplomacyStatus(s,fid,x).status}`);
   return [fid,{
     holdings:hs.length,
     money:hs.reduce((n,h)=>n+h.money,0),
@@ -17,8 +19,12 @@ const campaignSnapshot=s=>Object.fromEntries(['beasts','kozuki','kurozumi','hear
     armies:armies.length,
     operational:armies.filter(a=>a.troops>=400).length,
     waiting:armies.filter(a=>a.status==='waiting').length,
+    armyDetail:armies.map(a=>`${a.id}@${a.location}:${a.status}:${a.troops}`),
+    frontierEdges,
+    relations,
     freeOfficers:Object.values(s.officers).filter(o=>o.faction===fid&&o.status==='available').length,
-    ai:s.stats.aiByFaction?.[fid]?.total||0
+    ai:s.stats.aiByFaction?.[fid]?.total||0,
+    aiKinds:s.stats.aiByFaction?.[fid]||{}
   }];
 }));
 
