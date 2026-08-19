@@ -1,0 +1,57 @@
+name: Wano PR preview on GitHub Pages
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+      - opened
+      - reopened
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: wano-pages-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wano-web-vertical-slice')
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Wano feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/wano-web-vertical-slice
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Validate prototype
+        run: |
+          set -euo pipefail
+          node --check src/data.js
+          node --check src/world.js
+          node --check src/tactical.js
+          node --check src/simulation.js
+          node --check src/view.js
+          node --check src/ui.js
+          node --check src/main.js
+          npm test
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy preview
+        id: deployment
+        uses: actions/deploy-pages@v4
