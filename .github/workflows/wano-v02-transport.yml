@@ -6,16 +6,25 @@ on:
       - feature/wano-web-vertical-slice
     paths:
       - '.github/workflows/wano-v02-transport.yml'
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+    paths:
+      - '.github/workflows/wano-v02-transport.yml'
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: feature/wano-web-vertical-slice
           fetch-depth: 0
 
       - name: Verify source boundary
