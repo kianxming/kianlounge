@@ -1,8 +1,9 @@
 /* v1 final visual QA polish: keep the crowded central Wano front readable and reliably clickable. */
 html,body,button,select,input{font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif}
-#strategy-map{pointer-events:none;scroll-margin-top:190px}
+/* The SVG participates in hit-testing, but only explicit hit circles are interactive. */
+#strategy-map{pointer-events:auto;scroll-margin-top:190px}
 #strategy-map > image,.route{pointer-events:none}
-#strategy-map .stronghold,#strategy-map .unit,#strategy-map .battle-marker{pointer-events:all}
+#strategy-map .stronghold,#strategy-map .unit,#strategy-map .battle-marker{pointer-events:none}
 .stronghold-hit,.unit-hit,.battle-hit{fill:#000;fill-opacity:.001;stroke:none;pointer-events:all}
 .stronghold > svg{
   transform:scale(.76);
@@ -16,7 +17,9 @@ html,body,button,select,input{font-family:"Pretendard","Noto Sans KR","Apple SD 
   transform-origin:center;
   pointer-events:none;
 }
-.stronghold-name,.garrison{pointer-events:none}
+.stronghold-name,.garrison,.unit>path,.unit>rect,.unit>circle:not(.unit-hit),.battle-marker>circle:not(.battle-hit),.battle-marker>text{pointer-events:none}
+/* Informational toast must never block map/buttons underneath it. */
+.ui-notice{pointer-events:none}
 .stronghold-name{font-size:1.62px;letter-spacing:-.02em}
 .garrison{font-size:1.38px}
 .route{stroke-width:.34;opacity:.58}
