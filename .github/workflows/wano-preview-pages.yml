@@ -1,4 +1,4 @@
-# validation-candidate: f133c33ad1d75972f7df7d22ea1a8bfb4c6ae1a7
+# validation-candidate: 3e26e84cefcfd8b4b0106e39cc87dad053c538ec
 name: Wano v1 validation and GitHub Pages
 
 on:
@@ -92,10 +92,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Upload Pages artifact
+      - name: Stage clean static site
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp index.html styles.css v1-polish.css _site/
+          cp -R src assets _site/
+          touch _site/.nojekyll
+          test -f _site/index.html
+          test -f _site/src/main.js
+          test -f _site/assets/wano-map.svg
+          test ! -e _site/node_modules
+          test ! -e _site/test-results
+          test ! -e _site/validation-receipt
+
+      - name: Upload clean Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy v1 preview
         id: deployment
