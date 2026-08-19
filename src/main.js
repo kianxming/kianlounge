@@ -3,6 +3,7 @@ import { step, tickManualBattle } from './simulation.js';
 import { render } from './view.js';
 import { bind } from './ui.js';
 import { koreanizeDynamicDOM } from './koreanize-dom.js';
+import { installMapHitTargets } from './hit-targets.js';
 
 const root=document.querySelector('#app');
 let state=createInitialState(20260819);
@@ -19,6 +20,7 @@ const setSelectedTactical=v=>{selectedTactical=v};
 
 function draw(){
   root.innerHTML=render(state,selected,selectedTactical);
+  installMapHitTargets(root);
   koreanizeDynamicDOM(root,state);
   bind(root,getState,setSelected,getSelectedTactical,setSelectedTactical,draw,save,load);
 }
@@ -47,8 +49,9 @@ function load(){
 
 // pointerdown → click → submit 사이에는 자동 렌더가 DOM을 교체하지 못하게 한다.
 // 사용자가 한 번 누른 명령이 반드시 같은 DOM에서 끝까지 처리되도록 하는 v1 입력 잠금이다.
-const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+700)};
+const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+900)};
 root.addEventListener('pointerdown',holdInteraction,true);
+root.addEventListener('pointermove',holdInteraction,true);
 root.addEventListener('keydown',holdInteraction,true);
 root.addEventListener('submit',holdInteraction,true);
 
@@ -69,7 +72,7 @@ function frame(now){
     while(tacticalAcc>=250&&state.activeManualBattleId){tickManualBattle(state,.25);tacticalAcc-=250;changed=true}
   }
   // 자동 갱신은 사용자가 클릭/폼 입력 중일 때 DOM을 교체하지 않는다.
-  if(changed&&!userEditing()&&now-lastAutoDraw>450){draw();lastAutoDraw=now}
+  if(changed&&!userEditing()&&now-lastAutoDraw>900){draw();lastAutoDraw=now}
   requestAnimationFrame(frame);
 }
 
