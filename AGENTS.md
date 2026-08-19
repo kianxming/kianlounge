@@ -8,4 +8,10 @@ The repository itself defines its runtimes, services, dependencies, architecture
 
 Treat exact GitHub commit and PR state as durable source truth, preserve unrelated work, and do not make access to the user's computer a dependency of the workflow.
 
-When this repository is used as a template, keep this entry point and add the project's own engineering instructions alongside it.
+## Project-specific instructions
+
+Before changing game rules, read `docs/DESIGN_CONTRACT.md`. It is the durable source of truth for this project.
+
+Do not reinterpret this game as a simple RTS, a turn-based tactics game, a character-action game, or a static map mockup. Preserve the living strategic sandbox, route-graph logistics, stronghold-local resources, shared AUTO/manual battle simulation and placeholder-first pipeline.
+
+When a rule is uncertain, choose the smallest reversible implementation consistent with the design contract. Do not add features explicitly excluded by the contract unless the project owner changes that decision.
