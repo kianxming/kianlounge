@@ -156,6 +156,36 @@ function safeRetreat(s,a,from){
   if(r){a.location=from;a.status='waiting';moveArmy(s,a.id,r)}else a.status='waiting';
 }
 
+function friendlyRefuge(s,a,from){
+  const ids=[from,...neighbors(from)];
+  return ids.map(id=>s.strongholds[id]).find(h=>h?.owner===a.factionId)||null;
+}
+
+function clearArmyDeputy(s,a,loc){
+  if(!a.deputyId)return;
+  const d=s.officers[a.deputyId];
+  if(d?.assignedUnitId===a.id&&d.status==='deployed')release(s,d.id,loc||a.location);
+}
+
+function ensureArmyCommander(s,a,from){
+  const commander=s.officers[a.commanderId];
+  if(commander?.status==='deployed'&&commander.assignedUnitId===a.id)return true;
+  const deputy=a.deputyId?s.officers[a.deputyId]:null;
+  if(deputy&&deputy.status==='deployed'&&deputy.assignedUnitId===a.id){
+    const previous=a.commanderId;
+    a.commanderId=deputy.id;a.deputyId=null;
+    event(s,`${deputy.name} assumed command after ${s.officers[previous]?.name||'the commander'} was incapacitated.`,'military');
+    return true;
+  }
+  // Without a battle-capable commander the strategic army cannot persist. Survivors fall back into a friendly garrison.
+  const refuge=friendlyRefuge(s,a,from);
+  if(refuge){refuge.troops+=a.troops;refuge.food+=a.food}
+  clearArmyDeputy(s,a,refuge?.id||from);
+  delete s.armies[a.id];
+  event(s,`Army ${a.id} dissolved after losing its command structure.`,'military');
+  return false;
+}
+
 function resolveBattle(s,b){
   if(b.status==='resolved')return;
   const t=b.tactical,winner=t?.winner||'draw';
@@ -182,12 +212,15 @@ function resolveBattle(s,b){
   }
   for(const aid of b.attackerArmyIds){
     const a=s.armies[aid];if(!a)continue;
-    if(a.troops<=0){const o=s.officers[a.commanderId];if(o?.status!=='incapacitated')o.status='incapacitated';delete s.armies[aid]}
-    else if(attackerWon){a.status='waiting';a.location=h?.id||a.location}else safeRetreat(s,a,h?.id||a.location);
+    if(a.troops<=0){clearArmyDeputy(s,a,h?.id||a.location);delete s.armies[aid];continue}
+    if(!ensureArmyCommander(s,a,h?.id||a.location))continue;
+    if(attackerWon){a.status='waiting';a.location=h?.id||a.location}else safeRetreat(s,a,h?.id||a.location);
   }
   for(const aid of b.defenderArmyIds){
     const a=s.armies[aid];if(!a)continue;
-    if(a.troops<=0)delete s.armies[aid];else if(!attackerWon)a.status='waiting';else safeRetreat(s,a,h?.id||a.location);
+    if(a.troops<=0){clearArmyDeputy(s,a,h?.id||a.location);delete s.armies[aid];continue}
+    if(!ensureArmyCommander(s,a,h?.id||a.location))continue;
+    if(!attackerWon)a.status='waiting';else safeRetreat(s,a,h?.id||a.location);
   }
   const winningFaction=attackerWon?b.attackerFaction:b.defenderFaction;
   for(const tu of Object.values(t.units)){
