@@ -6,10 +6,25 @@ import {
 } from './world.js';
 import { createTacticalState, runAutoBattle, setManualSide, tickTactical } from './tactical.js';
 
+export const TRUCE_DURATION_MINUTES = 3*1440;
+
+export function updateDiplomaticTimers(s){
+  for(const d of Object.values(s.diplomacy||{})){
+    if(d.status!=='truce')continue;
+    if(s.elapsedMinutes-(d.since||0)<TRUCE_DURATION_MINUTES)continue;
+    d.status='neutral';
+    d.since=s.elapsedMinutes;
+    d.trust=clamp((d.trust||50)-4,0,100);
+    event(s,'A temporary truce expired and the frontier reopened.','diplomacy');
+  }
+  return s;
+}
+
 export function step(s,minutes=SIM_MINUTES_PER_STEP){
   if(s.paused)return s;
   s.elapsedMinutes+=minutes;
   respawnObjects(s);
+  updateDiplomaticTimers(s);
   moveUnits(s,minutes);
   processBattles(s,minutes);
   economy(s,minutes);
