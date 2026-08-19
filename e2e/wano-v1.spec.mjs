@@ -81,13 +81,14 @@ test.describe('와노 전란기 v1.1 실제 사용자 흐름', () => {
     const manual=page.getByRole('button',{name:'수동 지휘'}).first();
     await expect(manual).toBeVisible({timeout:12_000});
     await manual.click();
-    await expect(page.getByText('실시간 전술 전투',{exact:true})).toBeVisible();
+    const tactical=page.locator('.tactical-overlay');
+    await expect(tactical).toBeVisible();
     await expect(page.locator('.tactical-sprite').first()).toBeVisible();
     // 전략이 3배속이어도 수동전투는 즉시 결판나지 않아야 한다.
     await page.waitForTimeout(1800);
-    await expect(page.getByText('실시간 전술 전투',{exact:true})).toBeVisible();
+    await expect(tactical).toBeVisible();
     await page.getByRole('button',{name:'자동 전투로 전환'}).click();
-    await expect(page.getByText('실시간 전술 전투',{exact:true})).toHaveCount(0);
+    await expect(tactical).toHaveCount(0);
 
     // 동적으로 생성된 사건 기록에서도 지명/인물명은 한국어로 보인다.
     const feedText=await page.locator('.feed').innerText();
