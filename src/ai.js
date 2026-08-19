@@ -1,10 +1,10 @@
 import { FACTIONS } from './data.js';
 import {
   available, clamp, command, createArmy, createTransport, develop, diplomacyStatus,
-  isHostile, neighbors, path, produce, recruit, recruitPrisoner, rng, setDiplomacy, trade
+  isHostile, moveArmy, neighbors, path, produce, recruit, recruitPrisoner, rng, setDiplomacy, trade
 } from './world.js';
 
-export const AI_PLANNING_INTERVAL_MINUTES = 90;
+export const AI_PLANNING_INTERVAL_MINUTES = 60;
 
 const LEADERS = {
   straw_hat:'luffy', beasts:'kaido', kozuki:'momonosuke', kurozumi:'orochi',
@@ -63,7 +63,7 @@ function maxConcurrentArmies(s,fid,profile){
 
 function cycleBudget(s,fid){
   const hs=factionHoldings(s,fid),free=factionOfficers(s,fid).filter(o=>o.status==='available').length;
-  return clamp(1+Math.ceil(hs.length/2)+Math.floor(free/14),2,4);
+  return clamp(2+Math.ceil(hs.length/2)+Math.floor(free/14),2,5);
 }
 
 function commanderScore(o,p){
@@ -102,7 +102,39 @@ function attackCandidates(s,fid,p){
   return result.sort((a,b)=>b.score-a.score);
 }
 
+function maneuverAction(s,fid,p){
+  const waiting=activeArmies(s,fid).filter(a=>a.status==='waiting'&&a.troops>=300);
+  const direct=[];
+  for(const army of waiting){
+    const hostile=neighbors(army.location).map(id=>s.strongholds[id]).filter(h=>isHostile(s,fid,h.owner));
+    for(const target of hostile){
+      const ratio=army.troops/Math.max(500,target.troops);
+      let score=p.aggression*42+p.opportunism*Math.max(0,ratio-.45)*32-p.caution*Math.max(0,1-ratio)*28;
+      if(fid==='kozuki'&&target.id==='flower_capital')score+=38;
+      if(fid==='kid')score+=9;
+      if(fid==='heart'&&ratio>1.15)score+=12;
+      direct.push({army,target,score});
+    }
+  }
+  direct.sort((a,b)=>b.score-a.score);
+  if(direct[0]?.score>=30)return moveArmy(s,direct[0].army.id,direct[0].target.id);
+
+  // A finished campaign should not leave an army idle forever. Reposition to the nearest friendly frontline.
+  const fronts=factionHoldings(s,fid).filter(h=>frontlineInfo(s,h,fid).frontline);
+  const reposition=[];
+  for(const army of waiting){
+    for(const target of fronts){
+      if(target.id===army.location)continue;
+      const route=path(army.location,target.id);if(!route)continue;
+      reposition.push({army,target,len:route.length});
+    }
+  }
+  reposition.sort((a,b)=>a.len-b.len);
+  return reposition[0]?moveArmy(s,reposition[0].army.id,reposition[0].target.id):false;
+}
+
 function militaryAction(s,fid,p){
+  if(maneuverAction(s,fid,p))return true;
   if(activeArmies(s,fid).length>=maxConcurrentArmies(s,fid,p))return false;
   const c=attackCandidates(s,fid,p)[0];
   if(!c||c.score<42)return false;
@@ -168,15 +200,25 @@ function actionUtilities(s,fid,p){
   const hs=factionHoldings(s,fid);
   const frontline=hs.some(h=>frontlineInfo(s,h,fid).frontline);
   const lowFood=hs.some(h=>h.food<2400);
-  const armyRoom=activeArmies(s,fid).length<maxConcurrentArmies(s,fid,p);
+  const armies=activeArmies(s,fid);
+  const armyRoom=armies.length<maxConcurrentArmies(s,fid,p);
+  const maneuverable=armies.some(a=>a.status==='waiting');
   return [
     {kind:'defense',score:(frontline?52:12)+p.caution*24,run:()=>defenseAction(s,fid,p)},
-    {kind:'military',score:(frontline?42:28)+p.aggression*42+p.opportunism*12+(armyRoom?12:-35),run:()=>militaryAction(s,fid,p)},
+    {kind:'military',score:(frontline?42:28)+p.aggression*42+p.opportunism*12+((armyRoom||maneuverable)?12:-35),run:()=>militaryAction(s,fid,p)},
     {kind:'logistics',score:(lowFood?48:16)+p.logistics*36,run:()=>logisticsAction(s,fid,p)},
     {kind:'economy',score:25+p.development*35+(lowFood?12:0),run:()=>economyAction(s,fid,p)},
     {kind:'prisoner',score:24+p.diplomacy*12,run:()=>prisonerAction(s,fid)},
     {kind:'diplomacy',score:12+p.diplomacy*28+p.caution*10,run:()=>diplomacyAction(s,fid,p)}
   ];
+}
+
+function recordAIAction(s,fid,kind){
+  s.stats.aiOrders++;
+  s.stats.aiByFaction ||= {};
+  const row=s.stats.aiByFaction[fid] ||= {total:0,military:0,defense:0,logistics:0,economy:0,prisoner:0,diplomacy:0};
+  row.total++;
+  row[kind]=(row[kind]||0)+1;
 }
 
 export function runStrategicAI(s){
@@ -192,7 +234,7 @@ export function runStrategicAI(s){
       for(const a of actions){
         if(a.run()){
           used.set(a.kind,(used.get(a.kind)||0)+1);
-          s.stats.aiOrders++;
+          recordAIAction(s,f.id,a.kind);
           acted=true;
           break;
         }
