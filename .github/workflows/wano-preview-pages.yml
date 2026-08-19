@@ -1,4 +1,4 @@
-name: Wano feature preview on GitHub Pages
+name: Wano v1 validation and GitHub Pages
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Wano feature branch
+      - name: Checkout Wano v1 feature branch
         uses: actions/checkout@v4
         with:
           ref: feature/wano-web-vertical-slice
@@ -37,28 +37,43 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Validate prototype
+      - name: Validate modules and simulation contracts
         run: |
           set -euo pipefail
           node --check src/data.js
           node --check src/world.js
           node --check src/tactical.js
           node --check src/simulation.js
+          node --check src/i18n.js
+          node --check src/assets.js
           node --check src/view.js
           node --check src/ui.js
-          node --check src/ux.js
           node --check src/main.js
-          grep -q './ux.css' index.html
-          grep -q 'YOUR CHARACTERS' src/ux.js
-          grep -q "selected={type:'stronghold',id:'kibi_camp'}" src/main.js
           npm test
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save @playwright/test@latest
+          npx playwright install --with-deps chromium
+
+      - name: Run desktop and tablet E2E
+        run: npm run test:e2e
+
+      - name: Upload v1 E2E screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wano-v1-e2e
+          path: test-results
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
 
-      - name: Deploy preview
+      - name: Deploy v1 preview
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -84,5 +99,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "[skip ci] Record Wano Pages preview deployment"
+          git commit -m "[skip ci] Record Wano v1 Pages deployment"
           git push origin HEAD:main
