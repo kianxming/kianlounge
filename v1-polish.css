@@ -1,4 +1,5 @@
 /* v1 final visual QA polish: keep the crowded central Wano front readable and reliably clickable. */
+html,body,button,select,input{font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif}
 #strategy-map{pointer-events:none;scroll-margin-top:190px}
 #strategy-map > image,.route{pointer-events:none}
 #strategy-map .stronghold,#strategy-map .unit,#strategy-map .battle-marker{pointer-events:all}
