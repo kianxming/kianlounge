@@ -1,5 +1,8 @@
-/* v1 final visual QA polish: keep the crowded central Wano front readable. */
+/* v1 final visual QA polish: keep the crowded central Wano front readable and reliably clickable. */
+#strategy-map{pointer-events:none;scroll-margin-top:190px}
 #strategy-map > image,.route{pointer-events:none}
+#strategy-map .stronghold,#strategy-map .unit,#strategy-map .battle-marker{pointer-events:all}
+.stronghold-hit,.unit-hit,.battle-hit{fill:#000;fill-opacity:.001;stroke:none;pointer-events:all}
 .stronghold > svg{
   transform:scale(.76);
   transform-box:fill-box;
@@ -16,8 +19,10 @@
 .stronghold-name{font-size:1.62px;letter-spacing:-.02em}
 .garrison{font-size:1.38px}
 .route{stroke-width:.34;opacity:.58}
-@media(max-width:1100px){
-  .topbar,.officer-dock{position:relative;top:0}
+@media(max-width:1280px){
+  html{scroll-padding-top:12px}
+  .topbar,.officer-dock{position:relative;top:0;z-index:auto}
+  #strategy-map{scroll-margin-top:12px}
   .stronghold-name{font-size:1.54px}
   .garrison{font-size:1.28px}
 }
