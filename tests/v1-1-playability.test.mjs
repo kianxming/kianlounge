@@ -6,6 +6,22 @@ import { getFactionAIProfile, runStrategicAI, AI_PLANNING_INTERVAL_MINUTES } fro
 import { createTacticalState, tickTactical, runAutoBattle } from '../src/tactical.js';
 import { step } from '../src/simulation.js';
 
+const campaignSnapshot=s=>Object.fromEntries(['beasts','kozuki','kurozumi','heart','kid','big_mom'].map(fid=>{
+  const hs=Object.values(s.strongholds).filter(h=>h.owner===fid);
+  const armies=Object.values(s.armies).filter(a=>a.factionId===fid);
+  return [fid,{
+    holdings:hs.length,
+    money:hs.reduce((n,h)=>n+h.money,0),
+    food:hs.reduce((n,h)=>n+h.food,0),
+    garrison:hs.reduce((n,h)=>n+h.troops,0),
+    armies:armies.length,
+    operational:armies.filter(a=>a.troops>=400).length,
+    waiting:armies.filter(a=>a.status==='waiting').length,
+    freeOfficers:Object.values(s.officers).filter(o=>o.faction===fid&&o.status==='available').length,
+    ai:s.stats.aiByFaction?.[fid]?.total||0
+  }];
+}));
+
 test('v1.1 AI doctrines produce meaningfully different faction personalities',()=>{
   const s=createInitialState(20260819);
   const beasts=getFactionAIProfile(s,'beasts');
@@ -40,11 +56,13 @@ test('AI remains strategically active in the second half of a 30-day campaign',(
   for(let i=0;i<15*48;i++)step(s,30);
   const ordersAtMidpoint=s.stats.aiOrders;
   const battlesAtMidpoint=s.stats.battlesResolved;
+  const midpoint=campaignSnapshot(s);
   for(let i=0;i<15*48;i++)step(s,30);
   const lateOrders=s.stats.aiOrders-ordersAtMidpoint;
   const lateBattles=s.stats.battlesResolved-battlesAtMidpoint;
-  assert.ok(lateOrders>=60,`AI burned out after the opening: only ${lateOrders} orders during days 16-30`);
-  assert.ok(lateBattles>=1,`no autonomous battle resolved during days 16-30`);
+  const final=campaignSnapshot(s);
+  assert.ok(lateOrders>=60,`AI burned out after the opening: only ${lateOrders} orders during days 16-30\nmid=${JSON.stringify(midpoint)}\nfinal=${JSON.stringify(final)}`);
+  assert.ok(lateBattles>=1,`no autonomous battle resolved during days 16-30\nmid=${JSON.stringify(midpoint)}\nfinal=${JSON.stringify(final)}`);
   assert.ok(Object.values(s.armies).filter(a=>a.troops<400&&a.status==='waiting'&&s.strongholds[a.location]?.owner===a.factionId).length<=2,'exhausted friendly armies should not permanently consume command slots');
 });
 
