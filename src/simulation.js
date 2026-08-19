@@ -113,12 +113,23 @@ function makeBattle(s,{strongholdId=null,attackerArmyIds=[],defenderArmyIds=[],g
   return id;
 }
 
+function nearestFriendlyNeighbor(s,a,from){
+  return neighbors(from).find(x=>s.strongholds[x]?.owner===a.factionId)||null;
+}
+
 function armyArrive(s,a){
   const h=s.strongholds[a.location];
   event(s,`${s.officers[a.commanderId].name}'s army arrived at ${h.name}.`,'military');
   const hostileArmy=Object.values(s.armies).find(x=>x.id!==a.id&&x.location===a.location&&x.status==='waiting'&&isHostile(s,a.factionId,x.factionId));
   if(hostileArmy){makeBattle(s,{strongholdId:h.id,attackerArmyIds:[a.id],defenderArmyIds:[hostileArmy.id],type:'field'});return}
-  if(h.owner===a.factionId||!isHostile(s,a.factionId,h.owner)){a.status='waiting';return}
+  if(h.owner===a.factionId){a.status='waiting';return}
+  if(!isHostile(s,a.factionId,h.owner)){
+    // A truce may be signed while an invasion is already on the road. Do not let that army park forever inside a foreign city.
+    const home=nearestFriendlyNeighbor(s,a,h.id);
+    if(home&&moveArmy(s,a.id,home))event(s,`${s.officers[a.commanderId].name}'s army withdrew from ${h.name} under the new truce.`,'diplomacy');
+    else a.status='waiting';
+    return;
+  }
   makeBattle(s,{strongholdId:h.id,attackerArmyIds:[a.id],garrisonTroops:h.troops,garrisonMorale:h.morale,type:'siege'});
 }
 
