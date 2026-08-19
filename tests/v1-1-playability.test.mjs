@@ -17,7 +17,7 @@ test('v1.1 AI doctrines produce meaningfully different faction personalities',()
   assert.ok(heart.caution>kid.caution+.45);
   assert.ok(heart.logistics>beasts.logistics);
   assert.ok(kurozumi.diplomacy>beasts.diplomacy+.5);
-  assert.equal(AI_PLANNING_INTERVAL_MINUTES,90);
+  assert.equal(AI_PLANNING_INTERVAL_MINUTES,60);
 });
 
 test('one AI planning cycle can issue multiple orders across the world',()=>{
@@ -32,6 +32,7 @@ test('seven unattended days are more active than the v1.0 cadence',()=>{
   for(let i=0;i<7*48;i++)step(s,30);
   assert.ok(s.stats.aiOrders>=150,`AI orders too sparse: ${s.stats.aiOrders}`);
   assert.ok(s.stats.battlesResolved>=1,'world should generate autonomous conflict');
+  assert.ok(Object.values(s.stats.aiByFaction||{}).filter(x=>x.total>=5).length>=3,'several factions should remain strategically active');
 });
 
 test('balanced tactical armies do not resolve in the opening seconds',()=>{
