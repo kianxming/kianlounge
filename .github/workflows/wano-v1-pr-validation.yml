@@ -1,4 +1,4 @@
-name: Wano v1 PR browser validation
+name: Wano v1.1 PR browser validation
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  validate-v1:
+  validate-v1-1:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
@@ -24,28 +24,29 @@ jobs:
           set -euo pipefail
           node --check src/data.js
           node --check src/world.js
+          node --check src/ai.js
           node --check src/tactical.js
           node --check src/simulation.js
           node --check src/i18n.js
           node --check src/assets.js
+          node --check src/koreanize-dom.js
+          node --check src/hit-targets.js
           node --check src/view.js
           node --check src/ui.js
           node --check src/main.js
           npm test
 
-      - name: Install Playwright Chromium
-        run: |
-          npm install --no-save @playwright/test@latest
-          npx playwright install --with-deps chromium
+      - name: Install Playwright runner
+        run: npm install --no-save @playwright/test@latest
 
-      - name: Run desktop and tablet E2E
+      - name: Run desktop, tablet and iPhone-size E2E
         run: npm run test:e2e
 
-      - name: Upload v1 browser evidence
+      - name: Upload v1.1 browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wano-v1-pr-e2e
+          name: wano-v1-1-pr-e2e
           path: test-results
           if-no-files-found: warn
           retention-days: 7
