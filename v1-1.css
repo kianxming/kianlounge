@@ -21,6 +21,9 @@ button,select,input{border-radius:7px;padding:.43rem .58rem}
 .route{stroke-width:.27;opacity:.50}
 .stronghold.selected > svg{transform:scale(.72)}
 .stronghold.selected .stronghold-halo{transform:scale(.82)}
+/* Armies/transports are frequent after the new AI pass: keep their visual art compact while hit circles stay independent. */
+.unit > svg,.unit > circle:not(.unit-hit),.unit > path,.unit > rect{transform:scale(.70);transform-box:fill-box;transform-origin:center}
+.battle-marker > circle:not(.battle-hit),.battle-marker > text{transform:scale(.78);transform-box:fill-box;transform-origin:center}
 
 @media(max-width:900px){
   :root{font-size:14px}
@@ -77,6 +80,8 @@ button,select,input{border-radius:7px;padding:.43rem .58rem}
   .stronghold-halo{transform:scale(.55)}
   .stronghold.selected > svg{transform:scale(.70)}
   .stronghold.selected .stronghold-halo{transform:scale(.80)}
+  .unit > svg,.unit > circle:not(.unit-hit),.unit > path,.unit > rect{transform:scale(.54)}
+  .battle-marker > circle:not(.battle-hit),.battle-marker > text{transform:scale(.66)}
 
   /* Selected detail behaves as a compact sheet rather than a third desktop column stacked below everything. */
   .context{position:relative;display:block;max-height:43dvh;overflow:auto;padding:.42rem .48rem;border:1px solid #2e423d;border-radius:12px 12px 0 0;background:#101917;margin:.1rem .28rem 0}
