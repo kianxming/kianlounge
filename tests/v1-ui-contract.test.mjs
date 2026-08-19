@@ -9,6 +9,7 @@ const hitTargets=fs.readFileSync(new URL('../src/hit-targets.js',import.meta.url
 const i18n=fs.readFileSync(new URL('../src/i18n.js',import.meta.url),'utf8');
 const art=fs.readFileSync(new URL('../assets/v1-art.svg',import.meta.url),'utf8');
 const polish=fs.readFileSync(new URL('../v1-polish.css',import.meta.url),'utf8');
+const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
 test('v1 UI is Korean-first and map-first',()=>{
   for(const token of ['전략 지도','병력 모집','군단 편성','수송대 편성','인물 일람','외교','특수 물품','수동 지휘']) assert.match(view,new RegExp(token));
@@ -40,6 +41,12 @@ test('map has explicit painted hit geometry and decorative SVG cannot steal inpu
   assert.match(polish,/\.stronghold-name,.garrison\{pointer-events:none\}/);
   assert.match(polish,/@media\(max-width:1280px\)/);
   assert.match(polish,/\.topbar,.officer-dock\{position:relative;top:0;z-index:auto\}/);
+});
+
+test('player battles wait for explicit Manual or AUTO choice and the page declares a favicon',()=>{
+  assert.match(main,/function preservePlayerBattleChoice/);
+  assert.match(main,/b\.autoDeadline=Number\.MAX_SAFE_INTEGER/);
+  assert.match(index,/rel="icon"[^>]+assets\/favicon\.svg/);
 });
 
 test('v1 art sheet contains required production asset categories',()=>{
