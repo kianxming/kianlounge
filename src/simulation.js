@@ -237,8 +237,12 @@ function economy(s,m){
     const gov=h.officerAssignments?.governor?s.officers[h.officerAssignments.governor]:null;
     const log=h.officerAssignments?.logistics?s.officers[h.officerAssignments.logistics]:null;
     const govBonus=gov?gov.politics/250:0,logBonus=log?log.intelligence/300:0;
-    h._moneyFloat=(h._moneyFloat||0)+(10+h.development*(.8+govBonus))*m/1440;
-    h._foodFloat=(h._foodFloat||0)+(18+h.development*(1.1+logBonus)-Math.ceil(h.troops/160))*m/1440;
+    // v1.1.1 economy: the old daily income was only a few dozen money per city while one 500-man recruit costs 350.
+    // That made every faction burn its opening treasury and then freeze. Keep resources meaningful, but allow a developed city to recover over days.
+    const dailyMoney=45+h.development*(1.85+govBonus*.75);
+    const dailyFood=70+h.development*(2.1+logBonus*.8)-Math.ceil(h.troops/200);
+    h._moneyFloat=(h._moneyFloat||0)+dailyMoney*m/1440;
+    h._foodFloat=(h._foodFloat||0)+dailyFood*m/1440;
     const a=Math.trunc(h._moneyFloat),b=Math.trunc(h._foodFloat);
     if(a){h.money+=a;h._moneyFloat-=a}
     if(b){h.food=Math.max(0,h.food+b);h._foodFloat-=b}
