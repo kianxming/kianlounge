@@ -1,6 +1,6 @@
 import { FACTIONS } from './data.js';
 import {
-  available, clamp, command, createArmy, createTransport, develop, diplomacyStatus,
+  assignOfficerRole, available, clamp, command, createArmy, createTransport, develop, diplomacyStatus,
   isHostile, moveArmy, neighbors, path, produce, recruit, recruitPrisoner, rng, setDiplomacy, trade
 } from './world.js';
 
@@ -165,6 +165,24 @@ function logisticsAction(s,fid,p){
   return false;
 }
 
+function administrationAction(s,fid){
+  const roleScore={
+    governor:o=>o.politics*.62+o.intelligence*.23+o.charisma*.15,
+    logistics:o=>o.intelligence*.62+o.politics*.28+o.charisma*.10,
+    recruiter:o=>o.charisma*.55+o.martial*.25+o.politics*.20
+  };
+  for(const h of factionHoldings(s,fid)){
+    const assigned=new Set(Object.values(h.officerAssignments||{}).filter(Boolean));
+    for(const role of ['governor','logistics','recruiter']){
+      const currentId=h.officerAssignments?.[role],current=currentId?s.officers[currentId]:null;
+      if(current&&current.faction===fid&&current.status==='available'&&current.location===h.id)continue;
+      const candidate=available(s,fid,h.id).filter(o=>!assigned.has(o.id)).sort((a,b)=>roleScore[role](b)-roleScore[role](a))[0];
+      if(candidate&&assignOfficerRole(s,h.id,role,candidate.id,fid))return true;
+    }
+  }
+  return false;
+}
+
 function economyAction(s,fid,p){
   const hs=factionHoldings(s,fid);
   const foodRisk=hs.filter(h=>h.food<2200&&h.money>=220).sort((a,b)=>a.food-b.food)[0];
@@ -203,10 +221,12 @@ function actionUtilities(s,fid,p){
   const armies=activeArmies(s,fid);
   const armyRoom=armies.length<maxConcurrentArmies(s,fid,p);
   const maneuverable=armies.some(a=>a.status==='waiting');
+  const missingAdmin=hs.some(h=>Object.values(h.officerAssignments||{}).some(id=>!id)||Object.values(h.officerAssignments||{}).some(id=>id&&s.officers[id]?.status!=='available'));
   return [
     {kind:'defense',score:(frontline?52:12)+p.caution*24,run:()=>defenseAction(s,fid,p)},
     {kind:'military',score:(frontline?42:28)+p.aggression*42+p.opportunism*12+((armyRoom||maneuverable)?12:-35),run:()=>militaryAction(s,fid,p)},
     {kind:'logistics',score:(lowFood?48:16)+p.logistics*36,run:()=>logisticsAction(s,fid,p)},
+    {kind:'administration',score:(missingAdmin?54:5)+p.development*18+p.logistics*12,run:()=>administrationAction(s,fid)},
     {kind:'economy',score:25+p.development*35+(lowFood?12:0),run:()=>economyAction(s,fid,p)},
     {kind:'prisoner',score:24+p.diplomacy*12,run:()=>prisonerAction(s,fid)},
     {kind:'diplomacy',score:12+p.diplomacy*28+p.caution*10,run:()=>diplomacyAction(s,fid,p)}
@@ -216,7 +236,7 @@ function actionUtilities(s,fid,p){
 function recordAIAction(s,fid,kind){
   s.stats.aiOrders++;
   s.stats.aiByFaction ||= {};
-  const row=s.stats.aiByFaction[fid] ||= {total:0,military:0,defense:0,logistics:0,economy:0,prisoner:0,diplomacy:0};
+  const row=s.stats.aiByFaction[fid] ||= {total:0,military:0,defense:0,logistics:0,administration:0,economy:0,prisoner:0,diplomacy:0};
   row.total++;
   row[kind]=(row[kind]||0)+1;
 }
