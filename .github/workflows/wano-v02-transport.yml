@@ -1,0 +1,72 @@
+name: wano-v02-transport
+
+on:
+  push:
+    branches:
+      - feature/wano-web-vertical-slice
+    paths:
+      - '.github/workflows/wano-v02-transport.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_BASE="e259a5d7238e818d25cab58005ba3f942e9af324"
+          git merge-base --is-ancestor "$EXPECTED_BASE" HEAD
+          unexpected="$(git diff --name-only "$EXPECTED_BASE"..HEAD | grep -Ev '^(__probe_never__|\.luna-mission/wano-v02/payload\.[0-9]+|\.github/workflows/wano-v02-transport\.yml)$' || true)"
+          if [ -n "$unexpected" ]; then
+            printf 'Unexpected files changed since source boundary:\n%s\n' "$unexpected"
+            exit 1
+          fi
+
+      - name: Reassemble exact payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .luna-mission/wano-v02/payload.* > /tmp/wano-v02.b64
+          base64 --decode /tmp/wano-v02.b64 > /tmp/wano-v02.tar.gz
+          echo "4a5a35871e89ae587b1d4999d152b6f7626b4357473c191f751cf3f82ebcd392  /tmp/wano-v02.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/wano-v02.tar.gz -C .
+          rm -f __probe_never__
+          rm -f tests/simulation.test.mjs
+          rm -rf .luna-mission/wano-v02
+          rm -f .github/workflows/wano-v02-transport.yml
+
+      - name: Validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/data.js
+          node --check src/world.js
+          node --check src/tactical.js
+          node --check src/simulation.js
+          node --check src/view.js
+          node --check src/ui.js
+          node --check src/main.js
+          npm test
+          git diff --check
+
+      - name: Commit exact validated state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Luna Chat Coder"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "[skip ci] Complete Wano sandbox functional systems"
+          git push origin HEAD:feature/wano-web-vertical-slice
