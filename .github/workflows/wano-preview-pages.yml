@@ -1,4 +1,4 @@
-# validation-candidate: 64491bbfd1412179bc43a6532e6c66aa22201fe5
+# validation-candidate: c9f2c069aa2750b64624224a270045a0e27b2c6e
 name: Wano v1 validation and GitHub Pages
 
 on:
@@ -76,12 +76,10 @@ jobs:
           node --check src/main.js
           npm test
 
-      - name: Install Playwright Chromium
-        run: |
-          npm install --no-save @playwright/test@latest
-          npx playwright install --with-deps chromium
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@latest
 
-      - name: Run desktop and tablet E2E
+      - name: Run desktop and tablet E2E in runner Chrome
         run: npm run test:e2e
 
       - name: Upload v1 E2E screenshots and traces
