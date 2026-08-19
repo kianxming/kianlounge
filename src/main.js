@@ -2,6 +2,7 @@ import { createInitialState, deserialize, event, serialize } from './world.js';
 import { step, tickManualBattle } from './simulation.js';
 import { render } from './view.js';
 import { bind } from './ui.js';
+import { koreanizeDynamicDOM } from './koreanize-dom.js';
 
 const root=document.querySelector('#app');
 let state=createInitialState(20260819);
@@ -18,6 +19,7 @@ const setSelectedTactical=v=>{selectedTactical=v};
 
 function draw(){
   root.innerHTML=render(state,selected,selectedTactical);
+  koreanizeDynamicDOM(root,state);
   bind(root,getState,setSelected,getSelectedTactical,setSelectedTactical,draw,save,load);
 }
 
