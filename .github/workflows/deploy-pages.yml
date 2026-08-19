@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - feature/wano-web-vertical-slice
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
   workflow_dispatch:
 
 permissions:
@@ -17,13 +22,16 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout feature branch
         uses: actions/checkout@v4
+        with:
+          ref: feature/wano-web-vertical-slice
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
