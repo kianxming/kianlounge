@@ -47,6 +47,16 @@ function load(){
   draw();
 }
 
+// 플레이어가 참여한 전투는 Manual 또는 AUTO를 직접 고르기 전까지 명령 대기 상태를 유지한다.
+// 세계 전체 시간과 다른 AI 전투는 계속 진행되므로 샌드박스는 멈추지 않는다.
+function preservePlayerBattleChoice(){
+  for(const b of Object.values(state.battles||{})){
+    if(b.status==='awaiting_order'&&[b.attackerFaction,b.defenderFaction].includes(state.playerFaction)){
+      b.autoDeadline=Number.MAX_SAFE_INTEGER;
+    }
+  }
+}
+
 // pointerdown → click → submit 사이에는 자동 렌더가 DOM을 교체하지 못하게 한다.
 // 사용자가 한 번 누른 명령이 반드시 같은 DOM에서 끝까지 처리되도록 하는 v1 입력 잠금이다.
 const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+900)};
@@ -68,7 +78,7 @@ function frame(now){
   if(!state.paused){
     worldAcc+=dt*state.speed;
     tacticalAcc+=dt*state.speed;
-    while(worldAcc>=500){step(state,30);worldAcc-=500;changed=true}
+    while(worldAcc>=500){preservePlayerBattleChoice();step(state,30);worldAcc-=500;changed=true}
     while(tacticalAcc>=250&&state.activeManualBattleId){tickManualBattle(state,.25);tacticalAcc-=250;changed=true}
   }
   // 자동 갱신은 사용자가 클릭/폼 입력 중일 때 DOM을 교체하지 않는다.
