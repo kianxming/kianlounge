@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 860">
+<defs>
+  <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#15313a"/><stop offset="1" stop-color="#0e2228"/></linearGradient>
+  <linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5d7048"/><stop offset=".55" stop-color="#3f573b"/><stop offset="1" stop-color="#2d4534"/></linearGradient>
+  <filter id="paper"><feTurbulence baseFrequency=".018" numOctaves="3" seed="7" type="fractalNoise"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .12 0"/><feBlend in="SourceGraphic" mode="soft-light"/></filter>
+</defs>
+<rect width="1000" height="860" fill="url(#sea)"/>
+<g opacity=".18" fill="none" stroke="#8fc2c5" stroke-width="3">
+  <path d="M20 90 Q120 45 220 90 T420 90 T620 90 T820 90 T1020 90"/>
+  <path d="M-20 170 Q80 125 180 170 T380 170 T580 170 T780 170 T980 170"/>
+  <path d="M10 750 Q110 700 210 750 T410 750 T610 750 T810 750 T1010 750"/>
+</g>
+<g filter="url(#paper)">
+  <path d="M115 285 C178 185 305 155 430 205 C498 145 626 150 684 238 C770 188 908 235 875 350 C930 432 850 505 741 492 C690 612 565 626 493 556 C390 654 231 613 240 502 C127 484 73 390 115 285Z" fill="url(#land)" stroke="#9aa36b" stroke-width="10"/>
+  <path d="M105 622 C191 556 301 575 360 660 C478 598 584 638 611 745 C705 675 851 690 899 776 C818 846 669 842 552 802 C440 874 269 831 222 758 C149 762 81 704 105 622Z" fill="#4b6543" stroke="#9aa36b" stroke-width="10"/>
+  <path d="M698 62 C790 19 906 53 932 122 C909 207 830 241 747 211 C668 193 638 110 698 62Z" fill="#445643" stroke="#8e9d72" stroke-width="10"/>
+</g>
+<g fill="none" stroke="#6d8b86" stroke-width="7" opacity=".7"><path d="M505 225 Q430 330 452 530"/><path d="M670 255 Q622 345 650 474"/><path d="M304 245 Q342 335 312 463"/><path d="M352 665 Q456 690 548 780"/></g>
+<g fill="#2b3b2c" stroke="#85906a" stroke-width="4" opacity=".9"><path d="M190 355 l45 -70 48 70z"/><path d="M285 330 l55 -92 60 92z"/><path d="M563 344 l60 -105 68 105z"/><path d="M682 405 l42 -69 43 69z"/><path d="M425 480 l54 -93 57 93z"/><path d="M520 718 l48 -75 50 75z"/></g>
+<g fill="#d8c071" opacity=".65"><circle cx="512" cy="279" r="13"/><circle cx="580" cy="431" r="9"/><circle cx="311" cy="493" r="8"/></g>
+<g fill="#d8a6b8" opacity=".42"><circle cx="396" cy="305" r="15"/><circle cx="414" cy="316" r="10"/><circle cx="385" cy="321" r="9"/><circle cx="257" cy="577" r="12"/><circle cx="275" cy="587" r="8"/></g>
+<text x="500" y="825" text-anchor="middle" fill="#c9c6a0" font-family="serif" font-size="28" letter-spacing="12" opacity=".75">WANO COUNTRY</text>
+</svg>
