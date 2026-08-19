@@ -1,13 +1,11 @@
-name: Wano PR preview on GitHub Pages
+name: Wano feature preview on GitHub Pages
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-    types:
-      - synchronize
-      - opened
-      - reopened
+    paths:
+      - '.github/workflows/wano-preview-pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +19,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wano-web-vertical-slice')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,10 +29,8 @@ jobs:
         with:
           ref: feature/wano-web-vertical-slice
 
-      - name: Configure and enable Pages
+      - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Validate prototype
         run: |
