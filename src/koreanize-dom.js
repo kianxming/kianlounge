@@ -1,5 +1,7 @@
 import { koCharacter, koFaction, koStronghold } from './i18n.js';
 
+const RELEASE_LABEL='v1.1.0';
+
 const factionShorts = {
   'Straw Hats':'밀짚모자 일당',
   'Beasts':'백수 해적단',
@@ -19,7 +21,6 @@ function replacements(state){
     if(o?.name)pairs.push([o.name,koCharacter(o.name)]);
   }
   for(const [en,ko] of Object.entries(factionShorts))pairs.push([en,ko]);
-  // 긴 문자열부터 치환해 Big Mom / Kid 같은 부분 일치가 이름을 먼저 훼손하지 않게 한다.
   return pairs.filter(([a,b])=>a&&b&&a!==b).sort((a,b)=>b[0].length-a[0].length);
 }
 
@@ -29,7 +30,15 @@ function replaceText(text,pairs){
   return out;
 }
 
+function applyReleaseLabel(root){
+  const badge=root.querySelector('.brand em');
+  if(badge)badge.textContent=RELEASE_LABEL;
+  const footer=root.querySelector('footer');
+  if(footer&&footer.textContent.includes('v1.0.0'))footer.textContent=footer.textContent.replace('v1.0.0',RELEASE_LABEL);
+}
+
 export function koreanizeDynamicDOM(root,state){
+  applyReleaseLabel(root);
   const pairs=replacements(state);
   const scopes=root.querySelectorAll('.feed, .ui-notice, .battle-card, .tlog');
   for(const scope of scopes){
