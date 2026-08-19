@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const view=fs.readFileSync(new URL('../src/view.js',import.meta.url),'utf8');
 const ui=fs.readFileSync(new URL('../src/ui.js',import.meta.url),'utf8');
 const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const hitTargets=fs.readFileSync(new URL('../src/hit-targets.js',import.meta.url),'utf8');
 const i18n=fs.readFileSync(new URL('../src/i18n.js',import.meta.url),'utf8');
 const art=fs.readFileSync(new URL('../assets/v1-art.svg',import.meta.url),'utf8');
 const polish=fs.readFileSync(new URL('../v1-polish.css',import.meta.url),'utf8');
@@ -24,14 +25,21 @@ test('input uses one delegated root listener instead of per-render element bindi
 test('auto render cannot replace DOM during pointer click and form submit sequence',()=>{
   assert.match(main,/interactionUntil/);
   assert.match(main,/pointerdown/);
+  assert.match(main,/pointermove/);
   assert.match(main,/root\.addEventListener\('submit'/);
   assert.match(main,/if\(interactionLocked\)return true/);
 });
 
-test('decorative map art cannot intercept stronghold pointer input',()=>{
-  assert.match(polish,/#strategy-map > image,.route\{pointer-events:none\}/);
+test('map has explicit painted hit geometry and decorative SVG cannot steal input',()=>{
+  assert.match(main,/installMapHitTargets/);
+  assert.match(hitTargets,/stronghold-hit/);
+  assert.match(hitTargets,/ensureCircle\(g,'stronghold-hit',6\.4\)/);
+  assert.match(polish,/#strategy-map\{pointer-events:none/);
+  assert.match(polish,/#strategy-map \.stronghold,#strategy-map \.unit,#strategy-map \.battle-marker\{pointer-events:all\}/);
+  assert.match(polish,/\.stronghold-hit,.unit-hit,.battle-hit\{fill:#000;fill-opacity:\.001;stroke:none;pointer-events:all\}/);
   assert.match(polish,/\.stronghold-name,.garrison\{pointer-events:none\}/);
-  assert.match(polish,/\.topbar,.officer-dock\{position:relative;top:0\}/);
+  assert.match(polish,/@media\(max-width:1280px\)/);
+  assert.match(polish,/\.topbar,.officer-dock\{position:relative;top:0;z-index:auto\}/);
 });
 
 test('v1 art sheet contains required production asset categories',()=>{
