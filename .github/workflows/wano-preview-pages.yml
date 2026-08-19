@@ -34,6 +34,29 @@ jobs:
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Checkout main for validation receipt
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: validation-receipt
+
+      - name: Record validation start
+        shell: bash
+        env:
+          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
+        run: |
+          set -euo pipefail
+          cd validation-receipt
+          mkdir -p .github
+          printf 'status=running\npage_url=\nfeature_sha=%s\nrun_id=%s\n' "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/wano-pages-preview-status.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/wano-pages-preview-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Record Wano v1 validation start"
+            git push origin HEAD:main
+          fi
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
@@ -77,27 +100,18 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Checkout main for deployment receipt
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          path: deployment-receipt
-
-      - name: Record deployment receipt
+      - name: Record successful deployment
         shell: bash
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
           FEATURE_SHA: ${{ steps.feature.outputs.sha }}
         run: |
           set -euo pipefail
-          cd deployment-receipt
-          mkdir -p .github
+          cd validation-receipt
+          git pull --ff-only origin main
           printf 'status=success\npage_url=%s\nfeature_sha=%s\nrun_id=%s\n' "$PAGE_URL" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/wano-pages-preview-status.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/wano-pages-preview-status.txt
-          if git diff --cached --quiet; then
-            exit 0
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Record Wano v1 Pages deployment"
+            git push origin HEAD:main
           fi
-          git commit -m "[skip ci] Record Wano v1 Pages deployment"
-          git push origin HEAD:main
