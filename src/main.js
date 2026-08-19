@@ -43,7 +43,16 @@ function load(){
   draw();
 }
 
+// pointerdown → click → submit 사이에는 자동 렌더가 DOM을 교체하지 못하게 한다.
+// 사용자가 한 번 누른 명령이 반드시 같은 DOM에서 끝까지 처리되도록 하는 v1 입력 잠금이다.
+const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+700)};
+root.addEventListener('pointerdown',holdInteraction,true);
+root.addEventListener('keydown',holdInteraction,true);
+root.addEventListener('submit',holdInteraction,true);
+
 function userEditing(){
+  const interactionLocked=Number(root.dataset.interactionUntil||0)>performance.now();
+  if(interactionLocked)return true;
   const a=document.activeElement;
   return a && root.contains(a) && ['INPUT','SELECT','TEXTAREA'].includes(a.tagName);
 }
@@ -57,7 +66,7 @@ function frame(now){
     while(worldAcc>=500){step(state,30);worldAcc-=500;changed=true}
     while(tacticalAcc>=250&&state.activeManualBattleId){tickManualBattle(state,.25);tacticalAcc-=250;changed=true}
   }
-  // 자동 갱신은 입력 중 DOM을 교체하지 않는다. 클릭/폼 입력 안정성을 우선한다.
+  // 자동 갱신은 사용자가 클릭/폼 입력 중일 때 DOM을 교체하지 않는다.
   if(changed&&!userEditing()&&now-lastAutoDraw>450){draw();lastAutoDraw=now}
   requestAnimationFrame(frame);
 }
