@@ -14,8 +14,8 @@ export default defineConfig({
     viewport: { width: 1440, height: 1000 }
   },
   projects: [
-    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'], browserName:'chromium', viewport: { width: 1440, height: 1000 } } },
-    { name: 'chromium-tablet', use: { ...devices['iPad Pro 11 landscape'], browserName:'chromium' } }
+    { name: 'chrome-desktop', use: { ...devices['Desktop Chrome'], browserName:'chromium', channel:'chrome', viewport: { width: 1440, height: 1000 } } },
+    { name: 'chrome-tablet', use: { ...devices['iPad Pro 11 landscape'], browserName:'chromium', channel:'chrome' } }
   ],
   webServer: {
     command: 'python3 -m http.server 4173',
