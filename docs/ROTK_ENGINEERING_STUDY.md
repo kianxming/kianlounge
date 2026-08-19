@@ -1,6 +1,6 @@
 # ROTK Engineering Study — Wano v1.1
 
-이 문서는 `One Piece × Romance of the Three Kingdoms` 프로젝트의 v1.1 Playability Pass를 위해 삼국지 전략게임의 공개 매뉴얼, 커뮤니티 검증식, 오픈소스 삼국지 시뮬레이션 코드를 조사한 결과를 정리한다.
+이 문서는 `One Piece × Romance of the Three Kingdoms` 프로젝트의 v1.1 Playability Pass를 위해 삼국지 전략게임의 공개 매뉴얼, 커뮤니티 검증식, 오픈소스 삼국지 시뮬레이션 코드를 조사한 결과와 실제 적용 결정을 정리한다.
 
 중요: KOEI TECMO 상용작의 소스 코드는 공개되어 있지 않다. 따라서 상용작은 공식 매뉴얼과 공개된 플레이 규칙을, 수식은 커뮤니티의 역공학/검증 자료를 참고한다. 실제 코드 구조는 오픈소스 `中华三国志 / ZhongHuaSanGuoZhi-New-Code` 등에서 확인한다. 특정 게임의 수치를 그대로 복제하지 않고 설계 원리를 우리 게임 규칙에 맞게 재구성한다.
 
@@ -35,9 +35,23 @@
 우리 프로젝트 적용:
 
 - stronghold-local Money/Food/Troops 원칙을 유지한다.
-- 역할 담당 장수의 능력치를 수입/모병/물류 효율에 명확히 연결하고 UI에 예상 효과를 표시하는 방향으로 간다.
+- 역할 담당 장수의 능력치를 수입/모병/물류 효율에 명확히 연결한다.
 - 현재 vertical slice에서 이동 중 군량 소비는 없다는 기존 설계를 유지한다. 대신 `waiting/battle` 소비와 전선 보급 부족의 압박을 강화한다.
 - 거점 아이콘은 작게, 클릭 hit area는 크게 유지한다. 정보는 선택/확대 시 progressive disclosure한다.
+
+### 三國志 VIII Remake
+
+공식 매뉴얼에서 추가로 참고한 점:
+
+- 사기가 특정 구간 아래로 내려가면 공격/방어가 약화되고 추가 붕괴가 일어날 수 있어, 사기를 단순 장식 수치가 아니라 전투 상태축으로 취급한다.
+- 장수 간 관계/유대가 전투 중 연계 효과로 이어진다.
+- 행동에는 즉시 연속 난사하기 어려운 자원/쿨다운 성격의 제한이 있어 전투에 호흡을 만든다.
+
+우리 프로젝트 적용:
+
+- Character HP / Troops / Morale을 계속 분리한다.
+- 향후 관계 태그가 전투 보조/연계에 영향을 줄 수 있도록 데이터 구조를 유지한다.
+- v1.1에서는 우선 공격/스킬 피해량 cap, 이동 cadence, cooldown을 조정해 수동전투가 한순간에 종료되지 않게 한다.
 
 ## 2. 오픈소스 中华三国志 코드에서 얻은 구조적 교훈
 
@@ -56,7 +70,7 @@
 
 우리 프로젝트 적용:
 
-- 지금의 단일 `ai()` 함수에서 v1.1부터 `Faction doctrine/profile → utility actions → Army execution`으로 분리한다.
+- v1.1부터 `Faction doctrine/profile → utility actions → Army execution`으로 분리한다.
 - Wano 14거점에서는 별도 Section 엔티티를 아직 만들 필요가 없다. 대신 `frontline pressure`를 계산해 군구와 비슷한 중간 판단층으로 사용한다.
 - 향후 세계 규모가 커지면 같은 프로필 구조를 Division/Region AI로 확장할 수 있게 한다.
 
@@ -66,17 +80,16 @@
 
 우리 프로젝트 적용:
 
-- AI 행동 예산을 `군사 / 내정 / 물류 / 외교`로 분리한다.
+- AI 행동 예산을 `군사 / 동원 / 방어 / 내정 / 물류 / 외교`로 분리한다.
 - 공격군이 하나 존재한다고 세력 전체 군사 AI를 막지 않는다.
 - 식량이 부족한 전선은 공격보다 수송/생산을 높은 utility로 평가한다.
+- 전투가 끝난 군단도 대기 상태로 영구 정지하지 않고 다음 전선으로 기동/재배치한다.
 
 ## 3. v1.1 AI 설계
 
 ### Utility AI
 
 모든 가능한 행동에 점수를 주고 높은 점수부터 실행한다.
-
-예:
 
 ```text
 AttackScore
@@ -93,8 +106,6 @@ AttackScore
 
 ### 세력 Doctrine
 
-초기 방향:
-
 - Straw Hat: 공격적, 동맹 지원 높음, 영토 탐욕 낮음
 - Beasts: 매우 공격적, 강한 적과 대규모 군단 선호, 휴전 기피
 - Kozuki: 수도 탈환, 동맹 방어, 안정적 준비
@@ -105,28 +116,31 @@ AttackScore
 
 이 Doctrine 위에 실제 지도자 Traits가 추가 보정된다.
 
-예:
-
 - Reckless: aggression ↑, caution ↓
-- Strategist: opportunism ↑, caution ↑
+- Strategist: opportunism ↑, caution ↑, logistics ↑
 - Logistician: logistics ↑
 - Cowardly: caution/diplomacy ↑, aggression ↓
 - Grand Commander: 동시 운용 가능한 군단 수 ↑
 
-### 행동 빈도
+### 행동 빈도 및 예산
 
 v1.0 문제:
 
 - AI 판단이 180 game-minutes마다 1회
 - 한 세력이 한 번 행동하면 `continue`
 - 세력에 군단 하나만 있어도 새 공격군 생성 차단
+- 전투가 끝난 군단이 다음 명령 없이 대기하는 경우가 많음
 
-v1.1:
+v1.1 실제 구현:
 
-- planning interval: 90 game-minutes
-- 세력 규모/인재 수에 따라 cycle당 2~4개 action slot
-- 동시 군단 한도를 거점 수/Doctrine으로 계산
-- 같은 cycle에서 방어 모집 + 수송 + 공격 준비 등이 동시에 일어날 수 있음
+- planning interval: **45 game-minutes**
+- 세력 규모/인재 수에 따라 cycle당 **2~5개 action slot**
+- 행동 종류: defense / military / mobilization / logistics / administration / economy / prisoner / diplomacy
+- 동시 군단 한도를 거점 수, 인재 수, Doctrine으로 계산
+- 기존 군단이 다음 전선으로 계속 기동하거나 우호 전선에 재배치됨
+- 공격 전 proactive mobilization으로 예비병력을 미리 채울 수 있음
+- governor / logistics / recruiter를 역할별 능력치로 자동 배치함
+- 7일 deterministic unattended test에서 v1.0의 활동량보다 의미 있게 높은 활동량을 요구함
 
 ## 4. 전투 수치 설계
 
@@ -138,12 +152,22 @@ v1.1:
 - 스킬은 강하지만 `스킬 한 번 = 부대 삭제`가 되지 않게 대상 현재 병력 대비 최대 피해율을 둔다.
 - 강함은 순간 삭제가 아니라 `더 높은 지속 압박 + 사기 우위 + 스킬 효율 + 생존력`으로 표현한다.
 
+### v1.1 수치 구조
+
+- 기본 공격은 능력/숙련/Command/사기/병력비를 조합하되 대상 현재 병력 기준 최대 손실률을 제한한다.
+- 일반 스킬의 1회 troop casualty는 대상 현재 병력의 약 7% 이내, ultimate는 약 9% 이내를 상한으로 둔다.
+- 일반 공격 cooldown은 약 2.25초, 스킬은 약 4.25초, ultimate는 약 6초다.
+- 이동도 매 simulation tick마다 한 칸씩 순간이동하지 않고 별도 movement cadence를 둔다.
+- 지휘관 incapacitation 후에는 생존 부장이 지휘를 승계하고, 지휘 구조가 완전히 붕괴하면 군단이 안전하게 해산/복귀한다.
+
+이 값은 v1.1 검증용 기준이며 플레이테스트에 따라 조정 가능하다.
+
 ### 목표 전투 길이
 
 - 소규모 교전: 약 30~60초
 - 주요 장수전/공성: 약 2~4분
 
-이 값은 하드 승리조건이 아니라 밸런스 QA 기준이다.
+하드 승리조건이 아니라 밸런스 QA 기준이다. 자동 테스트는 최소한 균형 병력 전투가 시작 후 20초 안에 즉시 결판나지 않는 것을 보장한다.
 
 ### 시간축
 
@@ -162,11 +186,12 @@ v1.0 iPhone 테스트 피드백을 기준으로 다음 원칙을 채택한다.
 
 - visible icon size와 touch hit size를 분리한다.
 - 거점 아이콘은 약 30~40% 축소하지만 hit target은 기존보다 작게 만들지 않는다.
-- 390×844급 portrait viewport를 정식 E2E 대상에 추가한다.
+- 390×844 portrait + touch viewport를 정식 E2E 대상으로 둔다.
 - 모바일 첫 viewport에 `시간/세력 → 지도 → 선택 거점 핵심 명령`이 최대한 들어오게 한다.
 - 인물 도크는 높이를 줄이고 가로 스크롤한다.
-- 사건 기록/세부 폼은 기본 정보보다 후순위로 내린다.
+- 사건 기록은 모바일에서 기본 화면을 밀어내지 않도록 후순위 처리한다.
 - PC의 3-column 정보를 모바일에서 그대로 세로로 쌓지 않는다. 선택 상세는 compact sheet/panel로 다룬다.
+- SVG 장식과 토스트는 pointer event를 받지 않고 명시적 hit surface만 입력을 받는다.
 
 ## 6. 우리가 그대로 가져오지 않는 것
 
@@ -184,5 +209,5 @@ v1.0 iPhone 테스트 피드백을 기준으로 다음 원칙을 채택한다.
 - 균형 병력 전투가 첫 수 초 안에 결판나지 않는다.
 - AI는 7일 방치 시 v1.0보다 의미 있는 명령을 더 자주 낸다.
 - 최소 3개 세력이 동시에 복수의 군사/내정/물류 행동을 수행할 수 있다.
-- Beasts / Heart / Kid / Kurozumi의 행동 통계가 Doctrine 차이를 드러낸다.
+- Beasts / Heart / Kid / Kurozumi의 Doctrine 값과 실제 행동 기록을 별도로 추적할 수 있다.
 - 기존 14거점/17루트/130명/unique objects/save-load invariants는 유지한다.
