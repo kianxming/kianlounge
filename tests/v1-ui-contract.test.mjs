@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const view=fs.readFileSync(new URL('../src/view.js',import.meta.url),'utf8');
 const ui=fs.readFileSync(new URL('../src/ui.js',import.meta.url),'utf8');
+const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 const i18n=fs.readFileSync(new URL('../src/i18n.js',import.meta.url),'utf8');
 const art=fs.readFileSync(new URL('../assets/v1-art.svg',import.meta.url),'utf8');
 
@@ -17,6 +18,13 @@ test('input uses one delegated root listener instead of per-render element bindi
   assert.match(ui,/delegatedUiBound/);
   assert.match(ui,/root\.addEventListener\('click'/);
   assert.doesNotMatch(ui,/querySelectorAll\([^)]*\)\.forEach\(el=>el\.addEventListener/);
+});
+
+test('auto render cannot replace DOM during pointer click and form submit sequence',()=>{
+  assert.match(main,/interactionUntil/);
+  assert.match(main,/pointerdown/);
+  assert.match(main,/root\.addEventListener\('submit'/);
+  assert.match(main,/if\(interactionLocked\)return true/);
 });
 
 test('v1 art sheet contains required production asset categories',()=>{
