@@ -1,7 +1,7 @@
 import { FACTIONS } from './data.js';
 import {
   assignOfficerRole, available, clamp, command, createArmy, createTransport, develop, diplomacyStatus,
-  isHostile, moveArmy, neighbors, path, produce, recruit, recruitPrisoner, rng, setDiplomacy, trade
+  event, isHostile, moveArmy, neighbors, path, produce, recruit, recruitPrisoner, release, rng, setDiplomacy, trade
 } from './world.js';
 
 export const AI_PLANNING_INTERVAL_MINUTES = 45;
@@ -23,6 +23,7 @@ const BASE_DOCTRINES = {
 
 const clamp01=v=>clamp(v,0,1);
 const copyProfile=p=>({...p});
+const MIN_OPERATIONAL_ARMY=400;
 
 function applyTrait(profile,trait){
   if(trait==='Reckless'){profile.aggression+=.12;profile.caution-=.12}
@@ -47,12 +48,30 @@ export function getFactionAIProfile(s,factionId){
 const factionHoldings=(s,fid)=>Object.values(s.strongholds).filter(h=>h.owner===fid);
 const factionOfficers=(s,fid)=>Object.values(s.officers).filter(o=>o.faction===fid&&o.status!=='dead');
 const activeArmies=(s,fid)=>Object.values(s.armies).filter(a=>a.factionId===fid);
+const operationalArmies=(s,fid)=>activeArmies(s,fid).filter(a=>a.troops>=MIN_OPERATIONAL_ARMY);
 const round100=n=>Math.max(0,Math.floor(n/100)*100);
 
 function frontlineInfo(s,h,fid){
   const hostile=neighbors(h.id).map(id=>s.strongholds[id]).filter(x=>isHostile(s,fid,x.owner));
   const enemyTroops=hostile.reduce((m,x)=>Math.max(m,x.troops),0);
   return {hostile,enemyTroops,frontline:hostile.length>0};
+}
+
+function cleanupExhaustedArmies(s,fid){
+  let cleaned=0;
+  for(const a of activeArmies(s,fid)){
+    if(a.status!=='waiting'||a.troops>=MIN_OPERATIONAL_ARMY)continue;
+    const h=s.strongholds[a.location];
+    if(!h||h.owner!==fid)continue;
+    h.troops+=a.troops;
+    h.food+=a.food||0;
+    release(s,a.commanderId,h.id);
+    if(a.deputyId)release(s,a.deputyId,h.id);
+    delete s.armies[a.id];
+    event(s,`${s.officers[a.commanderId]?.name||'An exhausted army'} demobilized at ${h.name} and returned its survivors to the garrison.`,'military');
+    cleaned++;
+  }
+  return cleaned;
 }
 
 function maxConcurrentArmies(s,fid,profile){
@@ -83,7 +102,7 @@ function attackCandidates(s,fid,p){
       const target=s.strongholds[targetId];if(!isHostile(s,fid,target.owner))continue;
       const reserve=1200+Math.round(p.caution*900);
       const deployable=Math.max(0,base.troops-reserve);
-      if(deployable<900||base.food<500)continue;
+      if(deployable<900||base.food<800)continue;
       const targetPower=target.troops+target.development*14;
       const ownPower=deployable+command(lead)*10;
       const ratio=ownPower/Math.max(1,targetPower);
@@ -103,7 +122,7 @@ function attackCandidates(s,fid,p){
 }
 
 function maneuverAction(s,fid,p){
-  const waiting=activeArmies(s,fid).filter(a=>a.status==='waiting'&&a.troops>=300);
+  const waiting=operationalArmies(s,fid).filter(a=>a.status==='waiting');
   const direct=[];
   for(const army of waiting){
     const hostile=neighbors(army.location).map(id=>s.strongholds[id]).filter(h=>isHostile(s,fid,h.owner));
@@ -134,7 +153,7 @@ function maneuverAction(s,fid,p){
 
 function militaryAction(s,fid,p){
   if(maneuverAction(s,fid,p))return true;
-  if(activeArmies(s,fid).length>=maxConcurrentArmies(s,fid,p))return false;
+  if(operationalArmies(s,fid).length>=maxConcurrentArmies(s,fid,p))return false;
   const c=attackCandidates(s,fid,p)[0];
   if(!c||c.score<42)return false;
   const food=Math.min(900,round100(Math.max(500,c.base.food*.12)));
@@ -156,10 +175,11 @@ function mobilizationAction(s,fid,p){
       ? 2600+Math.round(p.caution*900+p.aggression*500)
       : 1500+Math.round(p.aggression*1100+p.caution*450);
     return {h,front,desired,gap:desired-h.troops};
-  }).filter(x=>x.gap>=400&&x.h.money>=350&&x.h.food>=250)
+  }).filter(x=>x.gap>=300&&x.h.money>=850&&x.h.food>=900)
     .sort((a,b)=>(b.gap+(b.front.frontline?700:0))-(a.gap+(a.front.frontline?700:0)));
-  const c=choices[0];
-  return c?recruit(s,c.h.id,500,fid):false;
+  const c=choices[0];if(!c)return false;
+  const amount=c.gap>=900?400:300;
+  return recruit(s,c.h.id,amount,fid);
 }
 
 function logisticsAction(s,fid,p){
@@ -197,13 +217,16 @@ function administrationAction(s,fid){
 
 function economyAction(s,fid,p){
   const hs=factionHoldings(s,fid);
-  const foodRisk=hs.filter(h=>h.food<2200&&h.money>=220).sort((a,b)=>a.food-b.food)[0];
+  // First recover a cash-starved city from food reserves instead of spending its last money on another action.
+  const cashRisk=hs.filter(h=>h.money<700&&h.food>3000).sort((a,b)=>a.money-b.money)[0];
+  if(cashRisk&&trade(s,cashRisk.id,'sell_food',500,fid))return true;
+  const foodRisk=hs.filter(h=>h.food<2000&&h.money>=500).sort((a,b)=>a.food-b.food)[0];
   if(foodRisk&&p.logistics>=.45&&produce(s,foodRisk.id,fid))return true;
-  const buy=hs.filter(h=>h.food<1100&&h.money>1500).sort((a,b)=>a.food-b.food)[0];
+  const buy=hs.filter(h=>h.food<1000&&h.money>1700).sort((a,b)=>a.food-b.food)[0];
   if(buy&&trade(s,buy.id,'buy_food',500,fid))return true;
-  const surplus=hs.filter(h=>h.food>6500&&h.money<1400).sort((a,b)=>b.food-a.food)[0];
+  const surplus=hs.filter(h=>h.food>5200&&h.money<1500).sort((a,b)=>b.food-a.food)[0];
   if(surplus&&trade(s,surplus.id,'sell_food',500,fid))return true;
-  const dev=hs.filter(h=>h.money>=500&&h.development<h.cap).sort((a,b)=>(a.development/a.cap)-(b.development/b.cap))[0];
+  const dev=hs.filter(h=>h.money>=1100&&h.development<h.cap).sort((a,b)=>(a.development/a.cap)-(b.development/b.cap))[0];
   if(dev&&p.development>.25&&develop(s,dev.id,fid))return true;
   return false;
 }
@@ -232,17 +255,18 @@ function actionUtilities(s,fid,p){
   const hs=factionHoldings(s,fid);
   const frontline=hs.some(h=>frontlineInfo(s,h,fid).frontline);
   const lowFood=hs.some(h=>h.food<2400);
-  const armies=activeArmies(s,fid);
+  const cashStarved=hs.some(h=>h.money<700);
+  const armies=operationalArmies(s,fid);
   const armyRoom=armies.length<maxConcurrentArmies(s,fid,p);
   const maneuverable=armies.some(a=>a.status==='waiting');
   const missingAdmin=hs.some(h=>Object.values(h.officerAssignments||{}).some(id=>!id)||Object.values(h.officerAssignments||{}).some(id=>id&&s.officers[id]?.status!=='available'));
   return [
     {kind:'defense',score:(frontline?52:12)+p.caution*24,run:()=>defenseAction(s,fid,p)},
     {kind:'military',score:(frontline?42:28)+p.aggression*42+p.opportunism*12+((armyRoom||maneuverable)?12:-35),run:()=>militaryAction(s,fid,p)},
-    {kind:'mobilization',score:28+p.aggression*25+p.caution*12+(frontline?10:0),run:()=>mobilizationAction(s,fid,p)},
+    {kind:'mobilization',score:28+p.aggression*25+p.caution*12+(frontline?10:0)-(cashStarved?28:0),run:()=>mobilizationAction(s,fid,p)},
     {kind:'logistics',score:(lowFood?48:16)+p.logistics*36,run:()=>logisticsAction(s,fid,p)},
     {kind:'administration',score:(missingAdmin?54:5)+p.development*18+p.logistics*12,run:()=>administrationAction(s,fid)},
-    {kind:'economy',score:25+p.development*35+(lowFood?12:0),run:()=>economyAction(s,fid,p)},
+    {kind:'economy',score:25+p.development*35+(lowFood?12:0)+(cashStarved?34:0),run:()=>economyAction(s,fid,p)},
     {kind:'prisoner',score:24+p.diplomacy*12,run:()=>prisonerAction(s,fid)},
     {kind:'diplomacy',score:12+p.diplomacy*28+p.caution*10,run:()=>diplomacyAction(s,fid,p)}
   ];
@@ -260,6 +284,7 @@ export function runStrategicAI(s){
   for(const f of FACTIONS){
     if(f.id===s.playerFaction)continue;
     if(!factionHoldings(s,f.id).length)continue;
+    cleanupExhaustedArmies(s,f.id);
     const profile=getFactionAIProfile(s,f.id),budget=cycleBudget(s,f.id),used=new Map();
     for(let slot=0;slot<budget;slot++){
       const actions=actionUtilities(s,f.id,profile)
