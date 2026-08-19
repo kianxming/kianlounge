@@ -13,7 +13,7 @@
 button,select,input{border-radius:7px;padding:.43rem .58rem}
 .order-card,.subpanel,.dip-card{padding:.55rem;margin:.4rem 0}
 
-/* Visible map art becomes quieter without shrinking the generous invisible hit targets. */
+/* Visible map art becomes quieter while explicit hit targets remain finger-friendly. */
 .stronghold > svg{transform:scale(.56);transform-box:fill-box;transform-origin:center;pointer-events:none}
 .stronghold-halo{transform:scale(.63);transform-box:fill-box;transform-origin:center;pointer-events:none}
 .stronghold-name{font-size:1.36px}
@@ -72,7 +72,10 @@ button,select,input{border-radius:7px;padding:.43rem .58rem}
   .map-title h1{font-size:.88rem;margin:0}
   .map-kpis{gap:.15rem;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
   .map-kpis span{font-size:.60rem;padding:.16rem .30rem;white-space:nowrap}
-  .map-wrap{height:52dvh;min-height:330px;max-height:455px;border-radius:9px}
+  /* The phone map is intentionally wider than the viewport. This gives central Wano nodes real breathing room instead of shrinking every marker into one cluster. */
+  .map-wrap{height:clamp(360px,52dvh,420px);min-height:360px;max-height:420px;border-radius:9px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior-inline:contain;touch-action:pan-x pan-y}
+  .map-wrap::-webkit-scrollbar{display:none}
+  #strategy-map{width:min(128vw,500px);min-width:460px;max-width:none;height:100%;margin:0 auto}
   .map-help,.legend{display:none}
   .stronghold-name{font-size:1.20px}
   .garrison{display:none}
@@ -84,7 +87,7 @@ button,select,input{border-radius:7px;padding:.43rem .58rem}
   .battle-marker > circle:not(.battle-hit),.battle-marker > text{transform:scale(.66)}
 
   /* Selected detail behaves as a compact sheet rather than a third desktop column stacked below everything. */
-  .context{position:relative;display:block;max-height:43dvh;overflow:auto;padding:.42rem .48rem;border:1px solid #2e423d;border-radius:12px 12px 0 0;background:#101917;margin:.1rem .28rem 0}
+  .context{position:relative;display:block;max-height:43dvh;overflow:auto;padding:.42rem .48rem;border:1px solid #2e423d;border-radius:12px 12px 0 0;background:#101917;margin:.1rem .28rem 0;overscroll-behavior:contain}
   .context:not(.open){display:none}
   .panel-close{width:28px;height:28px;right:.34rem;top:.30rem;font-size:1rem;padding:0}
   .context-title{padding-right:2rem;padding-bottom:.28rem;margin-bottom:.32rem}
@@ -134,6 +137,7 @@ button,select,input{border-radius:7px;padding:.43rem .58rem}
   .workspace{display:grid;grid-template-columns:64% 36%;height:calc(100dvh - 62px)}
   .map-shell{height:100%;padding:.22rem}
   .map-title{display:none}
-  .map-wrap{height:100%;max-height:none;min-height:0}
+  .map-wrap{height:100%;max-height:none;min-height:0;overflow:hidden}
+  #strategy-map{width:100%;min-width:0;height:100%}
   .context{margin:0;height:100%;max-height:none;border-radius:0}
 }
