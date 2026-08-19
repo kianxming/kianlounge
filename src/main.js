@@ -7,7 +7,8 @@ import { installMapHitTargets } from './hit-targets.js';
 
 const root=document.querySelector('#app');
 let state=createInitialState(20260819);
-state.uiNotice={text:'와노 전란기 v1에 오신 것을 환영합니다. 지도에서 거점을 한 번 클릭해 명령을 시작하세요.',tone:'info',stamp:Date.now()};
+state.tacticalSpeed=1;
+state.uiNotice={text:'와노 전란기 v1.1 플레이어빌리티 패스입니다. 지도에서 거점을 한 번 탭해 명령을 시작하세요.',tone:'info',stamp:Date.now()};
 let selected={type:'stronghold',id:'kibi_camp'};
 let selectedTactical=null;
 let last=performance.now(),worldAcc=0,tacticalAcc=0,lastAutoDraw=0;
@@ -37,6 +38,7 @@ function load(){
     const raw=localStorage.getItem(saveKey);
     if(!raw)throw Error('저장된 v1 세이브가 없습니다.');
     state=deserialize(raw);
+    if(!Number.isFinite(state.tacticalSpeed))state.tacticalSpeed=1;
     selected={type:'stronghold',id:'kibi_camp'};
     selectedTactical=null;
     event(state,'World state loaded.','system');
@@ -47,18 +49,7 @@ function load(){
   draw();
 }
 
-// 플레이어가 참여한 전투는 Manual 또는 AUTO를 직접 고르기 전까지 명령 대기 상태를 유지한다.
-// 세계 전체 시간과 다른 AI 전투는 계속 진행되므로 샌드박스는 멈추지 않는다.
-function preservePlayerBattleChoice(){
-  for(const b of Object.values(state.battles||{})){
-    if(b.status==='awaiting_order'&&[b.attackerFaction,b.defenderFaction].includes(state.playerFaction)){
-      b.autoDeadline=Number.MAX_SAFE_INTEGER;
-    }
-  }
-}
-
 // pointerdown → click → submit 사이에는 자동 렌더가 DOM을 교체하지 못하게 한다.
-// 사용자가 한 번 누른 명령이 반드시 같은 DOM에서 끝까지 처리되도록 하는 v1 입력 잠금이다.
 const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+900)};
 root.addEventListener('pointerdown',holdInteraction,true);
 root.addEventListener('pointermove',holdInteraction,true);
@@ -69,19 +60,20 @@ function userEditing(){
   const interactionLocked=Number(root.dataset.interactionUntil||0)>performance.now();
   if(interactionLocked)return true;
   const a=document.activeElement;
-  return a && root.contains(a) && ['INPUT','SELECT','TEXTAREA'].includes(a.tagName);
+  return a&&root.contains(a)&&['INPUT','SELECT','TEXTAREA'].includes(a.tagName);
 }
 
 function frame(now){
   const dt=Math.min(250,now-last);last=now;
   let changed=false;
   if(!state.paused){
+    // 전략 시간은 1x/2x/3x를 사용한다.
     worldAcc+=dt*state.speed;
-    tacticalAcc+=dt*state.speed;
-    while(worldAcc>=500){preservePlayerBattleChoice();step(state,30);worldAcc-=500;changed=true}
+    // 수동 전술은 별도 시간축이다. 전략 3x가 전술에 중복 적용되지 않는다.
+    tacticalAcc+=dt*(state.tacticalSpeed||1);
+    while(worldAcc>=500){step(state,30);worldAcc-=500;changed=true}
     while(tacticalAcc>=250&&state.activeManualBattleId){tickManualBattle(state,.25);tacticalAcc-=250;changed=true}
   }
-  // 자동 갱신은 사용자가 클릭/폼 입력 중일 때 DOM을 교체하지 않는다.
   if(changed&&!userEditing()&&now-lastAutoDraw>900){draw();lastAutoDraw=now}
   requestAnimationFrame(frame);
 }
