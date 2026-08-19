@@ -19,11 +19,41 @@ const setSelected=v=>{selected=v};
 const getSelectedTactical=()=>selectedTactical;
 const setSelectedTactical=v=>{selectedTactical=v};
 
-function draw(){
+function captureScrollState(){
+  const pick=(selector,axis='top')=>{
+    const el=root.querySelector(selector);if(!el)return null;
+    return axis==='left'?el.scrollLeft:el.scrollTop;
+  };
+  return {
+    x:window.scrollX,
+    y:window.scrollY,
+    context:pick('.context'),
+    dock:pick('.dock-scroll','left'),
+    actions:pick('.top-actions','left'),
+    mapX:pick('.map-wrap','left')
+  };
+}
+
+function restoreScrollState(pos){
+  if(!pos)return;
+  const apply=()=>{
+    window.scrollTo(pos.x,pos.y);
+    const context=root.querySelector('.context');if(context&&pos.context!==null)context.scrollTop=pos.context;
+    const dock=root.querySelector('.dock-scroll');if(dock&&pos.dock!==null)dock.scrollLeft=pos.dock;
+    const actions=root.querySelector('.top-actions');if(actions&&pos.actions!==null)actions.scrollLeft=pos.actions;
+    const map=root.querySelector('.map-wrap');if(map&&pos.mapX!==null)map.scrollLeft=pos.mapX;
+  };
+  apply();
+  requestAnimationFrame(apply);
+}
+
+function draw({preserveScroll=false}={}){
+  const scroll=preserveScroll?captureScrollState():null;
   root.innerHTML=render(state,selected,selectedTactical);
   installMapHitTargets(root);
   koreanizeDynamicDOM(root,state);
   bind(root,getState,setSelected,getSelectedTactical,setSelectedTactical,draw,save,load);
+  if(scroll)restoreScrollState(scroll);
 }
 
 function save(){
@@ -50,11 +80,14 @@ function load(){
 }
 
 // pointerdown → click → submit 사이에는 자동 렌더가 DOM을 교체하지 못하게 한다.
-const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+900)};
+const holdInteraction=()=>{root.dataset.interactionUntil=String(performance.now()+1200)};
+const holdNavigation=()=>{root.dataset.interactionUntil=String(performance.now()+4000)};
 root.addEventListener('pointerdown',holdInteraction,true);
 root.addEventListener('pointermove',holdInteraction,true);
 root.addEventListener('keydown',holdInteraction,true);
 root.addEventListener('submit',holdInteraction,true);
+root.addEventListener('scroll',holdNavigation,true);
+window.addEventListener('scroll',holdNavigation,{passive:true});
 
 function userEditing(){
   const interactionLocked=Number(root.dataset.interactionUntil||0)>performance.now();
@@ -74,7 +107,7 @@ function frame(now){
     while(worldAcc>=500){step(state,30);worldAcc-=500;changed=true}
     while(tacticalAcc>=250&&state.activeManualBattleId){tickManualBattle(state,.25);tacticalAcc-=250;changed=true}
   }
-  if(changed&&!userEditing()&&now-lastAutoDraw>900){draw();lastAutoDraw=now}
+  if(changed&&!userEditing()&&now-lastAutoDraw>900){draw({preserveScroll:true});lastAutoDraw=now}
   requestAnimationFrame(frame);
 }
 
