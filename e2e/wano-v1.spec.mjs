@@ -1,24 +1,32 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('와노 전란기 v1 실제 사용자 흐름', () => {
+test.describe('와노 전란기 v1.1 실제 사용자 흐름', () => {
   test('한국어 UI, 단일 클릭, 군단/수송/전투/저장 흐름이 동작한다', async ({ page }, testInfo) => {
     const errors=[];
     page.on('console',m=>{ if(m.type()==='error') errors.push(m.text()) });
     page.on('pageerror',e=>errors.push(e.message));
 
     await page.goto('/');
-    await expect(page).toHaveTitle(/와노 전란기 v1/);
+    await expect(page).toHaveTitle(/와노 전란기 v1\.1/);
     await expect(page.getByText('전략 지도',{exact:true})).toBeVisible();
     await expect(page.getByText('몽키 D. 루피',{exact:true}).first()).toBeVisible();
     await expect(page.getByText('키비 주둔지',{exact:true}).last()).toBeVisible();
 
-    // 한 번의 실제 클릭으로 다른 거점의 명령창이 열린다.
-    await page.locator('[data-select="stronghold"][data-id="flower_capital"]').click();
+    // 실제 사용자가 탭하는 투명 hit surface를 한 번 눌러 거점을 선택한다.
+    await page.locator('.stronghold-hit[data-id="flower_capital"]').click();
     await expect(page.locator('.context h2')).toHaveText('꽃의 수도');
 
-    await page.locator('[data-select="stronghold"][data-id="kibi_camp"]').click();
+    await page.locator('.stronghold-hit[data-id="kibi_camp"]').click();
     await expect(page.locator('.context h2')).toHaveText('키비 주둔지');
     await expect(page.getByText('현재 거점 인물',{exact:true})).toBeVisible();
+
+    // iPhone-size 환경에서는 지도와 선택 상세가 초기 화면 흐름 안에 압축되어 있어야 한다.
+    if(testInfo.project.name==='chrome-iphone'){
+      const map=await page.locator('.map-wrap').boundingBox();
+      const context=await page.locator('.context').boundingBox();
+      expect(map?.height||9999).toBeLessThanOrEqual(460);
+      expect(context?.y||9999).toBeLessThan(760);
+    }
 
     // 내정 명령은 한 번 클릭으로 결과 피드백을 낸다.
     const troopsBefore=Number((await page.locator('.resource-row > div').filter({hasText:'병력'}).locator('strong').first().innerText()).replaceAll(',',''));
@@ -37,7 +45,7 @@ test.describe('와노 전란기 v1 실제 사용자 흐름', () => {
     await expect(page.locator('.context h2')).toContainText('몽키 D. 루피 군단');
 
     // 다시 키비에서 수송대 편성: 나미가 식량 500을 아미가사로 수송.
-    await page.locator('[data-select="stronghold"][data-id="kibi_camp"]').click();
+    await page.locator('.stronghold-hit[data-id="kibi_camp"]').click();
     const transport=page.locator('form[data-form="transport"]');
     await transport.locator('select[name="commander"]').selectOption('nami');
     await transport.locator('select[name="destination"]').selectOption('amigasa');
@@ -75,6 +83,9 @@ test.describe('와노 전란기 v1 실제 사용자 흐름', () => {
     await manual.click();
     await expect(page.getByText('실시간 전술 전투',{exact:true})).toBeVisible();
     await expect(page.locator('.tactical-sprite').first()).toBeVisible();
+    // 전략이 3배속이어도 수동전투는 즉시 결판나지 않아야 한다.
+    await page.waitForTimeout(1800);
+    await expect(page.getByText('실시간 전술 전투',{exact:true})).toBeVisible();
     await page.getByRole('button',{name:'자동 전투로 전환'}).click();
     await expect(page.getByText('실시간 전술 전투',{exact:true})).toHaveCount(0);
 
@@ -83,6 +94,6 @@ test.describe('와노 전란기 v1 실제 사용자 흐름', () => {
     expect(feedText).not.toMatch(/Flower Capital|Mogura Port|Itachi Port|Tokage Port|Monkey D\. Luffy|Eustass Kid|Straw Hats|Kurozumi|Onigashima/);
 
     expect(errors,`브라우저 콘솔 오류: ${errors.join('\n')}`).toEqual([]);
-    await page.screenshot({path:`test-results/${testInfo.project.name}-v1.png`,fullPage:true});
+    await page.screenshot({path:`test-results/${testInfo.project.name}-v1-1.png`,fullPage:true});
   });
 });
