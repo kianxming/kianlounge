@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const view=fs.readFileSync(new URL('../src/view.js',import.meta.url),'utf8');
 const ui=fs.readFileSync(new URL('../src/ui.js',import.meta.url),'utf8');
 const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const simulation=fs.readFileSync(new URL('../src/simulation.js',import.meta.url),'utf8');
 const hitTargets=fs.readFileSync(new URL('../src/hit-targets.js',import.meta.url),'utf8');
 const i18n=fs.readFileSync(new URL('../src/i18n.js',import.meta.url),'utf8');
 const art=fs.readFileSync(new URL('../assets/v1-art.svg',import.meta.url),'utf8');
@@ -44,8 +45,9 @@ test('map has explicit painted hit geometry and decorative SVG cannot steal inpu
 });
 
 test('player battles wait for explicit Manual or AUTO choice and the page declares a favicon',()=>{
-  assert.match(main,/function preservePlayerBattleChoice/);
-  assert.match(main,/b\.autoDeadline=Number\.MAX_SAFE_INTEGER/);
+  assert.match(simulation,/status:playerInvolved\?'awaiting_order':'auto'/);
+  assert.match(simulation,/if\(b\.status==='awaiting_order'\)continue/);
+  assert.doesNotMatch(simulation,/autoDeadline/);
   assert.match(index,/rel="icon"[^>]+assets\/favicon\.svg/);
 });
 
