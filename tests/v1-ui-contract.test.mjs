@@ -10,6 +10,7 @@ const hitTargets=fs.readFileSync(new URL('../src/hit-targets.js',import.meta.url
 const i18n=fs.readFileSync(new URL('../src/i18n.js',import.meta.url),'utf8');
 const art=fs.readFileSync(new URL('../assets/v1-art.svg',import.meta.url),'utf8');
 const polish=fs.readFileSync(new URL('../v1-polish.css',import.meta.url),'utf8');
+const density=fs.readFileSync(new URL('../v1-1.css',import.meta.url),'utf8');
 const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
 test('v1 UI is Korean-first and map-first',()=>{
@@ -24,24 +25,30 @@ test('input uses one delegated root listener instead of per-render element bindi
   assert.doesNotMatch(ui,/querySelectorAll\([^)]*\)\.forEach\(el=>el\.addEventListener/);
 });
 
-test('auto render cannot replace DOM during pointer click and form submit sequence',()=>{
+test('auto render cannot replace DOM during active input or reset user scroll position',()=>{
   assert.match(main,/interactionUntil/);
   assert.match(main,/pointerdown/);
   assert.match(main,/pointermove/);
   assert.match(main,/root\.addEventListener\('submit'/);
+  assert.match(main,/window\.addEventListener\('scroll',holdNavigation/);
+  assert.match(main,/captureScrollState/);
+  assert.match(main,/restoreScrollState/);
+  assert.match(main,/draw\(\{preserveScroll:true\}\)/);
   assert.match(main,/if\(interactionLocked\)return true/);
 });
 
 test('map has explicit painted hit geometry and decorative SVG cannot steal input',()=>{
   assert.match(main,/installMapHitTargets/);
   assert.match(hitTargets,/stronghold-hit/);
-  assert.match(hitTargets,/ensureCircle\(g,'stronghold-hit',6\.4\)/);
+  assert.match(hitTargets,/ensureCircle\(g,'stronghold-hit',4\.8\)/);
   assert.match(hitTargets,/hit\.dataset\.select=group\.dataset\.select/);
   assert.match(hitTargets,/Math\.hypot/);
   assert.match(polish,/#strategy-map\{pointer-events:auto/);
   assert.match(polish,/#strategy-map \.stronghold,#strategy-map \.unit,#strategy-map \.battle-marker\{pointer-events:none\}/);
   assert.match(polish,/\.stronghold-hit,.unit-hit,.battle-hit\{fill:#000;fill-opacity:\.001;stroke:none;pointer-events:all\}/);
   assert.match(polish,/\.ui-notice\{pointer-events:none\}/);
+  assert.match(density,/#strategy-map\{width:min\(128vw,500px\);min-width:460px/);
+  assert.match(density,/overflow-x:auto;overflow-y:hidden/);
   assert.match(polish,/@media\(max-width:1280px\)/);
   assert.match(polish,/\.topbar,.officer-dock\{position:relative;top:0;z-index:auto\}/);
 });
