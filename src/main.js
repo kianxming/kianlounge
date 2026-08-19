@@ -47,13 +47,20 @@ function restoreScrollState(pos){
   requestAnimationFrame(apply);
 }
 
-function draw({preserveScroll=false}={}){
-  const scroll=preserveScroll?captureScrollState():null;
+function centerPhoneMap(){
+  if(!window.matchMedia('(max-width: 600px)').matches)return;
+  const map=root.querySelector('.map-wrap');if(!map||map.scrollWidth<=map.clientWidth)return;
+  map.scrollLeft=Math.max(0,(map.scrollWidth-map.clientWidth)/2);
+}
+
+function draw({preserveScroll=true}={}){
+  const scroll=preserveScroll&&root.firstElementChild?captureScrollState():null;
   root.innerHTML=render(state,selected,selectedTactical);
   installMapHitTargets(root);
   koreanizeDynamicDOM(root,state);
   bind(root,getState,setSelected,getSelectedTactical,setSelectedTactical,draw,save,load);
   if(scroll)restoreScrollState(scroll);
+  else requestAnimationFrame(centerPhoneMap);
 }
 
 function save(){
@@ -111,5 +118,5 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
-draw();
+draw({preserveScroll:false});
 requestAnimationFrame(frame);
