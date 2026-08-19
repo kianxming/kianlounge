@@ -36,10 +36,12 @@ test('map has explicit painted hit geometry and decorative SVG cannot steal inpu
   assert.match(main,/installMapHitTargets/);
   assert.match(hitTargets,/stronghold-hit/);
   assert.match(hitTargets,/ensureCircle\(g,'stronghold-hit',6\.4\)/);
-  assert.match(polish,/#strategy-map\{pointer-events:none/);
-  assert.match(polish,/#strategy-map \.stronghold,#strategy-map \.unit,#strategy-map \.battle-marker\{pointer-events:all\}/);
+  assert.match(hitTargets,/hit\.dataset\.select=group\.dataset\.select/);
+  assert.match(hitTargets,/Math\.hypot/);
+  assert.match(polish,/#strategy-map\{pointer-events:auto/);
+  assert.match(polish,/#strategy-map \.stronghold,#strategy-map \.unit,#strategy-map \.battle-marker\{pointer-events:none\}/);
   assert.match(polish,/\.stronghold-hit,.unit-hit,.battle-hit\{fill:#000;fill-opacity:\.001;stroke:none;pointer-events:all\}/);
-  assert.match(polish,/\.stronghold-name,.garrison\{pointer-events:none\}/);
+  assert.match(polish,/\.ui-notice\{pointer-events:none\}/);
   assert.match(polish,/@media\(max-width:1280px\)/);
   assert.match(polish,/\.topbar,.officer-dock\{position:relative;top:0;z-index:auto\}/);
 });
