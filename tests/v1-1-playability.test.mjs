@@ -17,7 +17,7 @@ test('v1.1 AI doctrines produce meaningfully different faction personalities',()
   assert.ok(heart.caution>kid.caution+.45);
   assert.ok(heart.logistics>beasts.logistics);
   assert.ok(kurozumi.diplomacy>beasts.diplomacy+.5);
-  assert.equal(AI_PLANNING_INTERVAL_MINUTES,60);
+  assert.equal(AI_PLANNING_INTERVAL_MINUTES,45);
 });
 
 test('one AI planning cycle can issue multiple orders across the world',()=>{
@@ -41,7 +41,7 @@ test('balanced tactical armies do not resolve in the opening seconds',()=>{
   s.armies.test_d={id:'test_d',factionId:'beasts',commanderId:'kaido',deputyId:null,troops:2200,food:900,morale:100,location:'kibi_camp',status:'battle'};
   const battle={id:'test',type:'field',strongholdId:'kibi_camp',attackerArmyIds:['test_a'],defenderArmyIds:['test_d'],attackerFaction:'straw_hat',defenderFaction:'beasts',garrisonTroops:0,garrisonMorale:100,status:'auto'};
   const t=createTacticalState(s,battle);
-  for(let i=0;i<40;i++)tickTactical(s,t,.5); // 20 tactical seconds
+  for(let i=0;i<40;i++)tickTactical(s,t,.5);
   assert.equal(t.winner,null,`battle ended too quickly: ${t.winner} at ${t.elapsedSeconds}s`);
   battle.tactical=t;
   const winner=runAutoBattle(s,battle,1400);
