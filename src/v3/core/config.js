@@ -42,6 +42,18 @@ export const PREFS={
 };
 export const prefsOf=id=>PREFS[id]||{dojo:6,restaurant:5,lodge:4,square:4,tavern:3,shop:3};
 
+export const PAIR_EVENTS={
+  'sanji|zoro':{bubble:'💢',text:'상디와 조로가 또 티격태격합니다.'},
+  'luffy|usopp':{bubble:'😆',text:'루피와 우솝이 신나게 떠들고 있습니다.'},
+  'chopper|luffy':{bubble:'😆',text:'루피와 쵸파가 즐겁게 어울립니다.'},
+  'chopper|usopp':{bubble:'✨',text:'우솝의 이야기에 쵸파가 눈을 반짝입니다.'},
+  'nami|robin':{bubble:'🙂',text:'나미와 로빈이 느긋하게 이야기를 나눕니다.'},
+  'franky|usopp':{bubble:'🔧',text:'프랑키와 우솝이 장비 이야기에 빠졌습니다.'},
+  'page_one|ulti':{bubble:'💢',text:'울티가 페이지원을 따라다니며 말을 겁니다.'},
+  'king|queen':{bubble:'💢',text:'킹과 퀸 사이에 또 신경전이 벌어집니다.'}
+};
+export function pairEvent(a,b){return PAIR_EVENTS[[a,b].sort().join('|')]||null;}
+
 export const START={luffy:[8,11],zoro:[5,11],sanji:[10,11],nami:[12,11],usopp:[3,11],chopper:[14,11],robin:[7,11],franky:[16,11]};
 const KO={luffy:'루피',zoro:'조로',sanji:'상디',nami:'나미',usopp:'우솝',chopper:'쵸파',robin:'로빈',franky:'프랑키',law:'로',king:'킹',queen:'퀸',jack:'잭',ulti:'울티',page_one:'페이지원',kaido:'카이도'};
 export const coreOf=id=>CHARACTERS.find(c=>c.id===id)||{};
