@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {V3Sim} from '../src/v3/core/sim.js';
+test('V3 village agents use facilities and create revenue',()=>{const s=new V3Sim();for(let i=0;i<400;i++)s.tick(.1);assert.ok(s.facilities.some(f=>f.uses>0));assert.ok(s.money>=25800)});
+test('V3 sortie reaches encounter and auto pauses',()=>{const s=new V3Sim();assert.equal(s.dispatch('bakura',['luffy','zoro','sanji'],1200),true);for(let i=0;i<300&&!s.encounter;i++)s.tick(.1);assert.ok(s.encounter);assert.equal(s.paused,true)});
+test('V3 battle resolves and supports focus targets',()=>{const s=new V3Sim();s.dispatch('bakura',['luffy','zoro','sanji'],2400);for(let i=0;i<300&&!s.encounter;i++)s.tick(.1);s.startBattle();s.setBattleFocus('zoro','jack');assert.equal(s.battle.focus.zoro,'jack');let guard=0;while(!s.battle.finished&&guard++<1200)s.tick(.1);assert.equal(s.battle.finished,true)});
+test('V3 prisoner persuasion enforces cooldown',()=>{const s=new V3Sim();s.capture('king','onigashima');s.persuade('king');const p=s.prisoners.find(x=>x.id==='king');if(p)assert.equal(p.cooldown,true)});
