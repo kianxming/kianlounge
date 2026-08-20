@@ -64,31 +64,112 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Recover and materialize V2 UI sources
+      - name: Recover compressed V2 UI payload
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p src/v2/ui
-          if ! gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js; then
-            echo 'gzip trailer/body check failed for app.js; exporting recovered payload for repair.'
-          fi
-          if ! gzip -dc .build/v2.css.gz > v2.css; then
-            echo 'gzip trailer/body check failed for v2.css; exporting recovered payload for repair.'
-          fi
+          gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js || true
+          gzip -dc .build/v2.css.gz > v2.css || true
           test -s src/v2/ui/app.js
           test -s v2.css
 
-      - name: Export recovered UI payload for deterministic repair
-        uses: actions/upload-artifact@v4
-        with:
-          name: v2-recovered-sources-${{ github.run_id }}
-          path: |
-            src/v2/ui/app.js
-            v2.css
-          if-no-files-found: error
-          retention-days: 7
+      - name: Repair damaged V2 app tail deterministically
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/v2/ui/app.js')
+          raw=p.read_bytes().splitlines(keepends=True)
+          if len(raw) < 168:
+              raise SystemExit('Recovered V2 app is shorter than the known-good prefix')
+          prefix=b''.join(raw[:168]).decode('utf-8')
 
-      - name: Syntax check Strategy Core V2 and recovered playable UI
+          def replace_once(old,new,label):
+              global prefix
+              if old not in prefix:
+                  raise SystemExit(f'missing repair anchor: {label}')
+              prefix=prefix.replace(old,new,1)
+
+          replace_once(
+          "function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['open-form-selected','👥','편성'],['defend-selected','🛡','방어'],['support-selected','🏳','지원']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}",
+          "function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['quick-production-selected','🌾','생산'],['open-form-selected','👥','편성'],['open-reinforce-selected','➕','보충']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}",
+          'bottom commands')
+          replace_once(
+          "if(op){toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`);render()}else toast('자원·장수·명령력을 확인하세요.')",
+          "if(op){render();requestAnimationFrame(()=>toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`))}else toast('자원·장수·명령력을 확인하세요.')",
+          'quick command toast')
+          replace_once(
+          "state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};toast('저장된 캠페인을 불러왔습니다.');render()",
+          "state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};render();requestAnimationFrame(()=>toast('저장된 캠페인을 불러왔습니다.'))",
+          'load toast')
+          replace_once(
+          "if(ar){selected={kind:'army',id:ar.id};drawer=null;toast('군단이 편성되었습니다.');render()}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}",
+          "if(ar){selected={kind:'army',id:ar.id};drawer=null;render();requestAnimationFrame(()=>toast('군단이 편성되었습니다.'))}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}",
+          'army form toast')
+
+          tail=r'''  if(a==='target-attack'||a==='target-move'){
+            const ar=armyId?state.armies[armyId]:selectedArmy();
+            if(!ar)return toast('먼저 대기 중인 군단을 선택하거나 편성하세요.');
+            if(ar.status!=='waiting')return toast('대기 중인 군단만 새 이동 명령을 받을 수 있습니다.');
+            targetMode={kind:a==='target-attack'?'attack':'move',armyId:ar.id};drawer=null;mobilePanelOpen=false;render();
+            requestAnimationFrame(()=>toast(a==='target-attack'?'공격할 거점을 지도에서 선택하세요.':'이동할 거점을 지도에서 선택하세요.'));return;
+          }
+          if(a==='open-transport'){const n=selectedNode();return n?openTransport(n):toast('내 거점을 선택하세요.');}
+          if(a==='open-scout'){return openScout(selectedNode());}
+          if(a==='open-diplomacy'){return openDiplomacy();}
+          if(a==='open-recruit-officer'){return openRecruitOfficer();}
+          if(a==='quick-production-selected'){const n=selectedNode();return n?issueQuick('production',n):toast('내 거점을 선택하세요.');}
+          if(a==='open-reinforce'||a==='open-reinforce-selected'){const ar=armyId?state.armies[armyId]:selectedArmy();return ar?openReinforce(ar.id):toast('보충할 대기 군단을 선택하세요.');}
+          if(a==='submit-transport'){
+            const commanderId=$('#transport-officer')?.value,destinationNodeId=$('#transport-target')?.value;
+            const cargo={food:Number($('#transport-food')?.value||0),troops:Number($('#transport-troops')?.value||0),money:Number($('#transport-money')?.value||0)};
+            const op=orderTransport(state,{factionId:state.playerFactionId,originNodeId:node,destinationNodeId,commanderId,cargo});
+            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`수송대 출발 · ${nodeName(destinationNodeId)}`))}else toast('수송 조건·자원·명령력을 확인하세요.');return;
+          }
+          if(a==='submit-scout'){
+            const officerId=$('#scout-officer')?.value,targetNodeId=$('#scout-target')?.value;
+            const op=orderScoutMission(state,{factionId:state.playerFactionId,originNodeId:node,targetNodeId,officerId});
+            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`정찰대 파견 · ${nodeName(targetNodeId)}`))}else toast('정찰 담당·경로·명령력을 확인하세요.');return;
+          }
+          if(a==='submit-diplomacy'){
+            const officerId=$('#dip-officer')?.value,targetFactionId=$('#dip-target')?.value,proposal=$('#dip-proposal')?.value||'truce';
+            const op=orderDiplomacyMission(state,{factionId:state.playerFactionId,targetFactionId,originNodeId:node,officerId,proposal});
+            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`사절 파견 · ${factionName(targetFactionId)}`))}else toast('외교 담당·대상·명령력을 확인하세요.');return;
+          }
+          if(a==='submit-recruit-officer'){
+            const officerId=$('#recruit-officer')?.value,targetOfficerId=$('#recruit-target')?.value;
+            const op=orderRecruitOfficerMission(state,{factionId:state.playerFactionId,originNodeId:node,officerId,targetOfficerId});
+            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`등용 사절 파견 · ${state.officers[targetOfficerId]?.name||'대상 장수'}`))}else toast('등용 담당·대상·명령력을 확인하세요.');return;
+          }
+          if(a==='submit-reinforce'){
+            const troops=Number($('#reinforce-troops')?.value||0),supplyPoints=Number($('#reinforce-supply')?.value||0);
+            const ok=reinforceArmy(state,{factionId:state.playerFactionId,armyId,troops,supplyPoints});
+            if(ok){drawer=null;render();requestAnimationFrame(()=>toast('군단 보충을 완료했습니다.'))}else toast('주둔 자원·군단 상태·명령력을 확인하세요.');return;
+          }
+          }
+
+          function actionError(err){console.error(err);toast(`명령 오류: ${err?.message||err}`)}
+          document.addEventListener('click',e=>{
+            const btn=e.target.closest('[data-action]');
+            if(btn){if(btn.disabled)return;Promise.resolve(handleAction(btn)).catch(actionError);return}
+            const card=e.target.closest('[data-event-node]');
+            if(card?.dataset.eventNode)focusNode(card.dataset.eventNode);
+          });
+          document.addEventListener('keydown',e=>{
+            if(e.key==='Escape'){
+              if(targetMode){targetMode=null;render();requestAnimationFrame(()=>toast('목표 선택을 취소했습니다.'));return}
+              if(drawer){drawer=null;render();return}
+              if(mobilePanelOpen||showRightPanel){mobilePanelOpen=false;showRightPanel=false;render();}
+            }
+          });
+          window.addEventListener('resize',()=>{const map=$('#map-scroll');if(map&&window.innerWidth<760)map.style.scrollBehavior='auto'});
+          render();
+          '''
+          p.write_text(prefix+tail,encoding='utf-8')
+          PY
+
+      - name: Syntax check Strategy Core V2 and repaired playable UI
         shell: bash
         run: |
           set -euo pipefail
@@ -117,16 +198,16 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Publish verified recovered UI source to V2 branch
+      - name: Publish verified repaired UI source to V2 branch
         if: success()
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "$(git status --porcelain -- src/v2/ui/app.js v2.css)" ]]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add -- src/v2/ui/app.js v2.css
-            git commit -m 'V2: materialize verified playable UI sources [skip ci]'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- src/v2/ui/app.js v2.css
+          if ! git diff --cached --quiet; then
+            git commit -m 'V2: publish verified playable UI sources [skip ci]'
             git push origin HEAD:feature/strategy-core-v2
           fi
 
