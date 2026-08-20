@@ -33,10 +33,13 @@ export function validateStrategyState(state,{throwOnError=false}={}){
       else if(state.battles?.[army.battleId]?.status!=='ongoing')fail(errors,`battle army ${id} references non-ongoing battle ${army.battleId}`);
     }else if(army.battleId)fail(errors,`non-battle army ${id} still references battle ${army.battleId}`);
 
-    if(army.status==='siege'){
-      if(!army.siegeId)fail(errors,`siege army ${id} has no siegeId`);
-      else if(state.sieges?.[army.siegeId]?.status!=='ongoing')fail(errors,`siege army ${id} references non-ongoing siege ${army.siegeId}`);
-    }else if(army.siegeId)fail(errors,`non-siege army ${id} still references siege ${army.siegeId}`);
+    if(army.siegeId){
+      const siege=state.sieges?.[army.siegeId];
+      if(siege?.status!=='ongoing')fail(errors,`army ${id} references non-ongoing siege ${army.siegeId}`);
+      else if(army.currentNodeId!==siege.nodeId)fail(errors,`army ${id} siege location does not match ${siege.nodeId}`);
+      else if(army.factionId!==siege.attackerFactionId)fail(errors,`army ${id} is not on siege attacker faction`);
+      else if(!['siege','battle','retreating','routed'].includes(army.status))fail(errors,`army ${id} retains siege ${army.siegeId} while status is ${army.status}`);
+    }else if(army.status==='siege')fail(errors,`siege army ${id} has no siegeId`);
   }
 
   for(const [id,op] of Object.entries(state.operations||{})){
@@ -87,7 +90,7 @@ export function validateStrategyState(state,{throwOnError=false}={}){
     for(const armyId of siege.attackerArmyIds){
       const army=state.armies?.[armyId];
       if(!army)fail(errors,`siege ${id} references missing army ${armyId}`);
-      else if(army.status==='siege'&&army.siegeId!==id)fail(errors,`siege ${id} army ${armyId} has mismatched siegeId`);
+      else if(army.siegeId===id&&!['siege','battle','retreating','routed'].includes(army.status))fail(errors,`siege ${id} army ${armyId} has invalid participant status ${army.status}`);
     }
   }
 
