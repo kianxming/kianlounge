@@ -6,6 +6,7 @@ import {
   createStrategyState, commitCommandPhase, advanceOneDay, executeCurrentWindow,
   beginNextCommandPhase, runStrategicTurn
 } from '../src/v2/core/engine.js';
+import { WANO_V2_NODES, WANO_V2_EDGES, createWanoV2Graph } from '../src/v2/data/wano-network.js';
 
 function missionGraph(){
   return buildGraph([
@@ -23,6 +24,20 @@ test('route ETA is the sum of explicit strategic edges rather than screen distan
   assert.deepEqual(route.edgeIds,['road_a','road_b']);
   assert.deepEqual(route.edgeDays,[18,19]);
   assert.equal(route.days,37);
+});
+
+test('Wano V2 is an operational network rather than fourteen directly linked city markers',()=>{
+  assert.ok(WANO_V2_NODES.length>=40,`expected >=40 nodes, got ${WANO_V2_NODES.length}`);
+  assert.ok(WANO_V2_EDGES.length>=48,`expected >=48 edges, got ${WANO_V2_EDGES.length}`);
+  const graph=createWanoV2Graph();
+  const kibiToCapital=shortestRoute(graph,'kibi_camp','flower_capital');
+  const ringoToUdon=shortestRoute(graph,'ringo','udon_prison');
+  assert.ok(kibiToCapital.edgeIds.length>=5,'Kibi -> Flower Capital needs operational waypoints for interception');
+  assert.ok(kibiToCapital.days>=12,`Kibi -> capital is still too compressed: ${kibiToCapital.days}d`);
+  assert.ok(ringoToUdon.days>30,`cross-region Ringo -> Udon should be able to span a monthly window: ${ringoToUdon.days}d`);
+  assert.ok(WANO_V2_NODES.some(n=>n.type==='pass'));
+  assert.ok(WANO_V2_NODES.some(n=>n.type==='forest'));
+  assert.ok(WANO_V2_NODES.some(n=>n.type==='sea'));
 });
 
 test('115-day recruitment mission persists across monthly command cycles and returns physically',()=>{
