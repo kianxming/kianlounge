@@ -1,4 +1,4 @@
-name: Wano Kairo V3 validation
+name: Wano Kairo V3 playable validation
 
 on:
   push:
@@ -7,13 +7,24 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: wano-kairo-v3-pages
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  validate-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/wano-kairo-v3
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -37,3 +48,43 @@ jobs:
             test-results
             playwright-report
           if-no-files-found: ignore
+      - name: Stage verified V3 Pages artifact
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp v3.html _site/index.html
+          cp v3.html v3.css v3-patch.css _site/
+          cp -R src assets _site/
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload verified V3 Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy verified V3 Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Record verified playable build
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github
+          {
+            echo "status=passed"
+            echo "validated_commit=${GITHUB_SHA}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "page_url=${PAGE_URL}"
+            echo "validated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "coverage=syntax,node-tests,chrome-desktop,chrome-iphone,pages-deploy"
+          } > .github/wano-kairo-v3-status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/wano-kairo-v3-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'V3: record verified playable build [skip ci]'
+            git push origin HEAD:feature/wano-kairo-v3
+          fi
