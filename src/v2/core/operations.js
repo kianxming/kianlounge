@@ -45,6 +45,13 @@ function advanceTravelOneDay(op){
   return false;
 }
 
+function cancelCurrentArmyOperation(state,army){
+  if(army.operationId&&state.operations[army.operationId]){
+    const op=state.operations[army.operationId];
+    if(!['completed','failed','cancelled'].includes(op.status))op.status='cancelled';
+  }
+}
+
 export function createOfficerMission(state,{
   type='officer_mission',officerId,originNodeId,destinationNodeId,
   prepareDays=0,taskDays=0,returnRequired=true,payload={}
@@ -148,9 +155,37 @@ function advanceArmyMarchOneDay(state,op){
   }
 }
 
+export function beginArmyWithdrawalFromEdge(state,armyId){
+  const army=state.armies[armyId];
+  if(!army||!army.currentEdgeId)throw new Error(`Army ${armyId} is not on an edge`);
+  const oldOp=army.operationId?state.operations[army.operationId]:null;
+  if(!oldOp?.activeRoute)throw new Error(`Army ${armyId} has no route context for edge withdrawal`);
+
+  const edgeIndex=oldOp.routeEdgeIndex||0;
+  const rearNodeId=oldOp.activeRoute.nodeIds[edgeIndex];
+  const originalEdgeDays=Math.max(1,oldOp.activeRoute.edgeDays[edgeIndex]||1);
+  const daysTravelled=Math.max(1,originalEdgeDays-(oldOp.edgeDaysRemaining||0));
+  const edgeId=army.currentEdgeId;
+
+  cancelCurrentArmyOperation(state,army);
+  const id=nextId(state,'withdrawal');
+  const route={nodeIds:[null,rearNodeId],edgeIds:[edgeId],edgeDays:[daysTravelled],days:daysTravelled};
+  const op={
+    id,type:'army_withdrawal',factionId:army.factionId,status:'retreating',originNodeId:null,destinationNodeId:rearNodeId,
+    actorIds:[...(army.officerIds||[])],armyId,startDay:state.day,route,travelDaysRemaining:0,
+    currentNodeId:null,currentEdgeId:edgeId,edgeDaysRemaining:0,routeEdgeIndex:0,activeRoute:null,result:null
+  };
+  startTravel(op,route);
+  state.operations[id]=op;
+  army.operationId=id;army.status='retreating';army.retreatTargetNodeId=rearNodeId;
+  army.currentNodeId=null;army.currentEdgeId=edgeId;
+  return op;
+}
+
 export function beginArmyRetreat(state,armyId,{preferredNodeId=null}={}){
   const army=state.armies[armyId];
   if(!army)throw new Error(`Unknown army ${armyId}`);
+  if(army.currentEdgeId)return beginArmyWithdrawalFromEdge(state,armyId);
   const start=army.currentNodeId;
   if(!start)throw new Error(`Army ${armyId} is not at a retreat origin node`);
   const candidates=Object.values(state.graph.nodes)
@@ -167,7 +202,7 @@ export function beginArmyRetreat(state,armyId,{preferredNodeId=null}={}){
   });
   if(!route){army.status='stranded';army.retreatRoute=null;return null}
 
-  if(army.operationId&&state.operations[army.operationId])state.operations[army.operationId].status='cancelled';
+  cancelCurrentArmyOperation(state,army);
   const id=nextId(state,'retreat');
   const op={
     id,type:'army_retreat',factionId:army.factionId,status:'retreating',originNodeId:start,destinationNodeId:route.targetId,
@@ -198,7 +233,7 @@ function advanceRetreatOneDay(state,op){
 export function advanceOperationsOneDay(state){
   for(const op of Object.values(state.operations)){
     if(['completed','failed','cancelled'].includes(op.status))continue;
-    if(op.type==='army_retreat')advanceRetreatOneDay(state,op);
+    if(['army_retreat','army_withdrawal'].includes(op.type))advanceRetreatOneDay(state,op);
     else if(['army_march','reinforcement','intercept'].includes(op.type))advanceArmyMarchOneDay(state,op);
     else advanceMissionOneDay(state,op);
   }
