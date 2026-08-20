@@ -28,6 +28,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record validation start
+        run: |
+          set -euo pipefail
+          mkdir -p .github
+          {
+            echo "status=running"
+            echo "validated_commit=${GITHUB_SHA}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > .github/wano-kairo-v3-validation-start.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/wano-kairo-v3-validation-start.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'V3: record validation start [skip ci]'
+            git push origin HEAD:feature/wano-kairo-v3
+          fi
       - name: Syntax check V3
         run: |
           set -euo pipefail
@@ -72,7 +89,6 @@ jobs:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
-          mkdir -p .github
           {
             echo "status=passed"
             echo "validated_commit=${GITHUB_SHA}"
@@ -81,8 +97,6 @@ jobs:
             echo "validated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "coverage=syntax,node-tests,chrome-desktop,chrome-iphone,pages-deploy"
           } > .github/wano-kairo-v3-status.txt
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- .github/wano-kairo-v3-status.txt
           if ! git diff --cached --quiet; then
             git commit -m 'V3: record verified playable build [skip ci]'
