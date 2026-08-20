@@ -1,5 +1,5 @@
-# validation-candidate: a97bf2c9c8d83db06a359c39997443d237baf69e
-name: Strategy Core V2 validation
+# validation-candidate: 9fd0444f506625787aa27e9ead95c2592927068c
+name: Strategy Core V2 playable validation and Pages
 
 on:
   push:
@@ -9,24 +9,44 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: strategy-core-v2-pages
+  cancel-in-progress: true
 
 jobs:
-  core:
+  validate-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Strategy Core V2 branch
+      - name: Checkout exact Strategy Core V2 branch
         uses: actions/checkout@v4
         with:
           ref: feature/strategy-core-v2
+
       - name: Capture V2 SHA
         id: feature
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Checkout main for validation receipt
+
+      - name: Assert requested candidate SHA
+        shell: bash
+        env:
+          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$FEATURE_SHA" = "9fd0444f506625787aa27e9ead95c2592927068c"
+
+      - name: Checkout main for durable validation receipt
         uses: actions/checkout@v4
         with:
           ref: main
           path: validation-receipt
+
       - name: Record validation start
         shell: bash
         env:
@@ -35,28 +55,119 @@ jobs:
           set -euo pipefail
           cd validation-receipt
           mkdir -p .github
-          printf 'status=running\nfeature_sha=%s\nrun_id=%s\n' "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/strategy-core-v2-status.txt
-          if ! git diff --cached --quiet; then git commit -m "[skip ci] Record Strategy Core V2 validation start"; git push origin HEAD:main; fi
-      - name: Syntax check V2 core
+          printf 'status=running\npage_url=\nfeature_sha=%s\nrun_id=%s\n' "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/strategy-core-v2-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Record Strategy Core V2 validation start'
+            git push origin HEAD:main
+          fi
+
+      - name: Materialize exact V2 UI sources
+        shell: bash
         run: |
-          for f in src/v2/world/graph.js src/v2/core/*.js src/v2/data/wano-*.js src/v2/domain/*.js src/v2/ai/*.js; do node --check "$f"; done
-      - name: Run V2 strategy-core tests
-        run: node --test tests/v2-*.test.mjs
-      - name: Run repository regression suite
+          set -euo pipefail
+          mkdir -p src/v2/ui
+          gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js
+          gzip -dc .build/v2.css.gz > v2.css
+          test -s src/v2/ui/app.js
+          test -s v2.css
+
+      - name: Syntax check Strategy Core V2 and playable UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src/v2 -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check src/data.js
+          node --check src/assets.js
+          node --check e2e/v2-final.spec.mjs
+
+      - name: Run Strategy Core V2 and repository regression tests
         run: npm test
-      - name: Record validation result
+
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.55.0
+
+      - name: Run real Chrome V2 E2E on desktop, tablet and iPhone viewport
+        run: npx playwright test e2e/v2-final.spec.mjs --project=chrome-desktop --project=chrome-tablet --project=chrome-iphone
+
+      - name: Upload V2 browser traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-e2e-artifacts-${{ github.run_id }}
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Publish verified materialized UI source to V2 branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain -- src/v2/ui/app.js v2.css)" ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- src/v2/ui/app.js v2.css
+            git commit -m 'V2: materialize verified playable UI sources [skip ci]'
+            git push origin HEAD:feature/strategy-core-v2
+          fi
+
+      - name: Stage clean V2 Pages artifact
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp v2.html _site/index.html
+          cp v2.html v2.css _site/
+          cp -R src assets _site/
+          touch _site/.nojekyll
+          test -f _site/index.html
+          test -f _site/v2.css
+          test -f _site/src/v2/ui/app.js
+          test -f _site/assets/v3/wano-terrain.jpg
+          test ! -e _site/node_modules
+          test ! -e _site/test-results
+          test ! -e _site/validation-receipt
+
+      - name: Configure Pages
+        if: success()
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload V2 Pages artifact
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy V2 Pages
+        if: success()
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Record final validation and deployment result
         if: always()
         shell: bash
         env:
           FEATURE_SHA: ${{ steps.feature.outputs.sha }}
           JOB_STATUS: ${{ job.status }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
           cd validation-receipt
           git pull --ff-only origin main
-          printf 'status=%s\nfeature_sha=%s\nrun_id=%s\n' "$JOB_STATUS" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
-          git add .github/strategy-core-v2-status.txt
-          if ! git diff --cached --quiet; then git commit -m "[skip ci] Record Strategy Core V2 validation result"; git push origin HEAD:main; fi
+          printf 'status=%s\npage_url=%s\nfeature_sha=%s\nrun_id=%s\n' "$JOB_STATUS" "$PAGE_URL" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/strategy-core-v2-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m '[skip ci] Record Strategy Core V2 playable validation result'
+            git push origin HEAD:main
+          fi
