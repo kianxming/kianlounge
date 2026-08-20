@@ -16,7 +16,7 @@ function armyRearNode(state,army){
   const op=army.operationId?state.operations[army.operationId]:null;
   if(op?.activeRoute){
     const rearIndex=Math.max(0,op.routeEdgeIndex||0);
-    return op.activeRoute.nodeIds[rearIndex]||op.originNodeId;
+    return op.activeRoute.nodeIds[rearIndex]||op.originNodeId||army.originNodeId||army.supplySourceNodeId||null;
   }
   return army.originNodeId||army.supplySourceNodeId||null;
 }
