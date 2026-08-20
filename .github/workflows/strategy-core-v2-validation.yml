@@ -3,7 +3,7 @@ name: Strategy Core V2 validation
 on:
   pull_request:
     branches:
-      - main
+      - feature/wano-web-vertical-slice
     paths:
       - 'src/v2/**'
       - 'tests/v2-*.test.mjs'
@@ -25,6 +25,7 @@ jobs:
           node --check src/v2/world/graph.js
           node --check src/v2/core/operations.js
           node --check src/v2/core/engine.js
+          node --check src/v2/data/wano-network.js
       - name: Run V2 strategy-core tests
         run: node --test tests/v2-strategy-core.test.mjs
       - name: Run repository regression suite
