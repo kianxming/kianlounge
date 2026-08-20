@@ -1,4 +1,4 @@
-# validation-candidate: 1b0a4a7976a6293b3c7a7a8021648f9d682ff683
+# validation-candidate: 7bc3a5c53d5d28012bd3bb31d12165cf7e4975a0
 name: Strategy Core V2 validation
 
 on:
@@ -55,6 +55,9 @@ jobs:
           node --check src/v2/core/operations.js
           node --check src/v2/core/engine.js
           node --check src/v2/data/wano-network.js
+          node --check src/v2/domain/supply.js
+          node --check src/v2/domain/battles.js
+          node --check src/v2/ai/reactive.js
 
       - name: Run V2 strategy-core tests
         run: node --test tests/v2-strategy-core.test.mjs
