@@ -104,6 +104,50 @@ function advanceMissionOneDay(state,op){
   if(op.status==='returning'&&advanceTravelOneDay(op))finishOfficerMission(state,op,op.originNodeId);
 }
 
+export function createArmyMarchOperation(state,{
+  armyId,destinationNodeId,type='army_march',objective='move',doctrine={},payload={}
+}){
+  const army=state.armies[armyId];
+  if(!army)throw new Error(`Unknown army ${armyId}`);
+  if(!army.currentNodeId)throw new Error(`Army ${armyId} must start a new march from a node`);
+  if(army.operationId)throw new Error(`Army ${armyId} already has an active operation`);
+  const originNodeId=army.currentNodeId;
+  const route=shortestRoute(state.graph,originNodeId,destinationNodeId);
+  if(!route)throw new Error(`No route ${originNodeId} -> ${destinationNodeId}`);
+  const id=nextId(state,type);
+  const op={
+    id,type,factionId:army.factionId,status:'marching',originNodeId,destinationNodeId,armyId,
+    actorIds:[...(army.officerIds||[])],startDay:state.day,route,objective,doctrine,payload,
+    travelDaysRemaining:0,currentNodeId:originNodeId,currentEdgeId:null,edgeDaysRemaining:0,
+    routeEdgeIndex:0,activeRoute:null,result:null
+  };
+  startTravel(op,route);
+  state.operations[id]=op;
+  army.originNodeId??=originNodeId;army.supplySourceNodeId??=originNodeId;
+  army.operationId=id;army.status='moving';army.currentNodeId=op.currentNodeId;army.currentEdgeId=op.currentEdgeId;
+  return op;
+}
+
+export function createReinforcementOperation(state,args){
+  return createArmyMarchOperation(state,{...args,type:'reinforcement',objective:'reinforce'});
+}
+
+export function createInterceptOperation(state,args){
+  return createArmyMarchOperation(state,{...args,type:'intercept',objective:'intercept'});
+}
+
+function advanceArmyMarchOneDay(state,op){
+  const army=state.armies[op.armyId];
+  if(!army||army.status==='destroyed'){op.status='failed';return}
+  if(army.status==='battle')return;
+  const arrived=advanceTravelOneDay(op);
+  army.currentNodeId=op.currentNodeId;army.currentEdgeId=op.currentEdgeId;
+  if(arrived){
+    army.currentNodeId=op.destinationNodeId;army.currentEdgeId=null;army.status='waiting';army.operationId=null;
+    op.currentNodeId=op.destinationNodeId;op.currentEdgeId=null;op.status='completed';op.completedDay=state.day;
+  }
+}
+
 export function beginArmyRetreat(state,armyId,{preferredNodeId=null}={}){
   const army=state.armies[armyId];
   if(!army)throw new Error(`Unknown army ${armyId}`);
@@ -123,16 +167,17 @@ export function beginArmyRetreat(state,armyId,{preferredNodeId=null}={}){
   });
   if(!route){army.status='stranded';army.retreatRoute=null;return null}
 
+  if(army.operationId&&state.operations[army.operationId])state.operations[army.operationId].status='cancelled';
   const id=nextId(state,'retreat');
   const op={
     id,type:'army_retreat',factionId:army.factionId,status:'retreating',originNodeId:start,destinationNodeId:route.targetId,
-    actorIds:[...army.officerIds],armyId,startDay:state.day,route,travelDaysRemaining:0,
+    actorIds:[...(army.officerIds||[])],armyId,startDay:state.day,route,travelDaysRemaining:0,
     currentNodeId:start,currentEdgeId:null,edgeDaysRemaining:0,routeEdgeIndex:0,activeRoute:null,result:null
   };
   startTravel(op,route);
   state.operations[id]=op;army.status='retreating';army.operationId=id;army.retreatTargetNodeId=route.targetId;
   army.currentNodeId=op.currentNodeId;army.currentEdgeId=op.currentEdgeId;
-  for(const officerId of army.officerIds){
+  for(const officerId of army.officerIds||[]){
     const officer=state.officers[officerId];if(officer)officer.assignment={kind:'army',armyId};
   }
   return op;
@@ -141,6 +186,7 @@ export function beginArmyRetreat(state,armyId,{preferredNodeId=null}={}){
 function advanceRetreatOneDay(state,op){
   const army=state.armies[op.armyId];
   if(!army||army.status==='destroyed'){op.status='failed';return}
+  if(army.status==='battle')return;
   const arrived=advanceTravelOneDay(op);
   army.currentNodeId=op.currentNodeId;army.currentEdgeId=op.currentEdgeId;
   if(arrived){
@@ -153,6 +199,7 @@ export function advanceOperationsOneDay(state){
   for(const op of Object.values(state.operations)){
     if(['completed','failed','cancelled'].includes(op.status))continue;
     if(op.type==='army_retreat')advanceRetreatOneDay(state,op);
+    else if(['army_march','reinforcement','intercept'].includes(op.type))advanceArmyMarchOneDay(state,op);
     else advanceMissionOneDay(state,op);
   }
 }
