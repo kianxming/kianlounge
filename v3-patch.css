@@ -1,0 +1,12 @@
+.facility.readonly,.chara.readonly{pointer-events:none}
+.vtools>span{pointer-events:none;display:inline-flex;align-items:center;border:2px solid #79502e;border-radius:8px;background:#fff0b8;padding:7px 9px;font-size:10px;font-weight:900;box-shadow:0 3px #a66e35}
+.scout{background:linear-gradient(#82b9c8 0 16%,#88b65f 16%)}
+.scout .grid{filter:saturate(.88)}
+.scout .facility{background:linear-gradient(145deg,#e9c57a,#b87542)}
+.scout .chara>i{background:#d9986d}
+.road-cell{background:#d7b879b8!important;border:2px dashed #fff7c0!important}
+.road-choice{background:#fff0b8!important}
+.march span{max-width:190px;white-space:normal!important;line-height:1.15}
+.battle-head span{font-weight:900}
+.fighter em{min-height:10px;display:block;color:#7c2d21;font-weight:900}
+@media(max-width:520px){.vtools>span{font-size:8px;padding:6px}.march span{max-width:135px;font-size:7px}.battle-head{font-size:8px}.battle-log{bottom:74px}}
