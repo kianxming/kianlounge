@@ -168,6 +168,12 @@ function snapshotSide(armies){
 
 function resumeArmyAfterBattle(state,army){
   army.battleId=null;
+  const siege=army.siegeId?state.sieges?.[army.siegeId]:null;
+  if(siege?.status==='ongoing'&&army.currentNodeId===siege.nodeId&&army.factionId===siege.attackerFactionId){
+    army.status='siege';
+    return;
+  }
+  if(army.siegeId)army.siegeId=null;
   const op=activeOperation(state,army);
   if(op&&!['completed','failed','cancelled'].includes(op.status)){
     army.status=['army_retreat','army_withdrawal'].includes(op.type)?'retreating':'moving';
