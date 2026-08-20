@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          test "$sha" = "bd39a47cf0b7aca5fbd8ea80c3f01cb9876383eb"
+          test "$sha" = "438fad2ddd60590178a2e63a2c9c9dbda1a37811"
 
       - name: Checkout main validation helpers
         uses: actions/checkout@v4
