@@ -1,9 +1,15 @@
 name: Strategy Core V2 validation
 
 on:
-  push:
+  pull_request:
     branches:
-      - feature/strategy-core-v2
+      - main
+    paths:
+      - 'src/v2/**'
+      - 'tests/v2-*.test.mjs'
+      - 'docs/STRATEGY_CORE_V2_*.md'
+      - 'docs/DESIGN_CONTRACT.md'
+      - '.github/workflows/strategy-core-v2-validation.yml'
   workflow_dispatch:
 
 permissions:
