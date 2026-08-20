@@ -7,6 +7,16 @@
 .road-cell{background:#d7b879b8!important;border:2px dashed #fff7c0!important}
 .road-choice{background:#fff0b8!important}
 .march span{max-width:190px;white-space:normal!important;line-height:1.15}
+.march.enemy{filter:saturate(1.15)}
+.march.enemy span{background:#f7c7bddd;border-color:#7b3329;color:#5c1f18}
+.node span small{display:block;font-size:7px;color:#6e5032}
 .battle-head span{font-weight:900}
 .fighter em{min-height:10px;display:block;color:#7c2d21;font-weight:900}
-@media(max-width:520px){.vtools>span{font-size:8px;padding:6px}.march span{max-width:135px;font-size:7px}.battle-head{font-size:8px}.battle-log{bottom:74px}}
+.treasure-row{display:grid;width:100%;text-align:left;margin:6px 0;border:2px solid #9a6a39;border-radius:9px;background:#fff7d8;padding:9px}
+.treasure-row.on{background:#ffe28c;outline:2px solid #b97725}
+.treasure-row small,.gift small,.roster button small{display:block;font-size:8px;margin-top:2px;color:#765536}
+.gift{margin-top:6px}
+.save-toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:90;background:#3e2b20;color:#fff6d7;border:2px solid #f4d078;border-radius:9px;padding:8px 12px;font-size:11px;font-weight:900;box-shadow:0 4px 12px #0005;max-width:82vw;text-align:center}
+.sheet>p{font-size:10px;line-height:1.55;color:#765536}
+.sheet h2 small{font-size:9px;color:#8a5c35}
+@media(max-width:520px){.vtools>span{font-size:8px;padding:6px}.march span{max-width:135px;font-size:7px}.battle-head{font-size:8px}.battle-log{bottom:74px}.save-toast{bottom:70px}}
