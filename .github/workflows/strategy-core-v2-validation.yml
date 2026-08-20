@@ -8,6 +8,7 @@ on:
       - '.github/scripts/repair-v2-sources.py'
       - '.github/scripts/patch-v2-mobile.py'
       - '.github/scripts/patch-v2-ux.py'
+      - '.github/scripts/patch-v2-ux-hotfix.py'
   workflow_dispatch:
 
 permissions:
@@ -70,6 +71,7 @@ jobs:
           python3 validation-receipt/.github/scripts/repair-v2-sources.py
           python3 validation-receipt/.github/scripts/patch-v2-mobile.py
           python3 validation-receipt/.github/scripts/patch-v2-ux.py
+          python3 validation-receipt/.github/scripts/patch-v2-ux-hotfix.py
 
       - name: Syntax and repository regression tests
         shell: bash
