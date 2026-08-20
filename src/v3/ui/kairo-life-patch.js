@@ -3,9 +3,10 @@ import {pairEvent} from '../core/config.js';
 // Kairosoft-style "watching is fun" layer for the first V3 village slice.
 // It deliberately stays simple: no hunger/fatigue meters, only preferences,
 // short reactions, character relationships, and visible prisoner life.
-const api=window.__V3__;
-if(api?.sim){
-  const sim=api.sim;
+function install(){
+  const api=window.__V3__;
+  if(!api?.sim||api.sim.__kairoLifeInstalled)return false;
+  const sim=api.sim;sim.__kairoLifeInstalled=true;
   const baseFinishUse=sim.finishUse.bind(sim);
   const baseCapture=sim.capture.bind(sim);
   const basePersuade=sim.persuade.bind(sim);
@@ -78,4 +79,10 @@ if(api?.sim){
 
   syncPrisonVisuals();
   api.render();
+  return true;
+}
+
+if(!install()){
+  let tries=0;
+  const timer=setInterval(()=>{tries++;if(install()||tries>100)clearInterval(timer);},20);
 }
