@@ -1,0 +1,31 @@
+name: Strategy Core V2 validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/v2/**'
+      - 'tests/v2-*.test.mjs'
+      - 'docs/STRATEGY_CORE_V2_*.md'
+      - 'docs/DESIGN_CONTRACT.md'
+      - '.github/workflows/strategy-core-v2-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check V2 core
+        run: |
+          node --check src/v2/world/graph.js
+          node --check src/v2/core/operations.js
+          node --check src/v2/core/engine.js
+      - name: Run V2 strategy-core tests
+        run: node --test tests/v2-strategy-core.test.mjs
+      - name: Run repository regression suite
+        run: npm test
