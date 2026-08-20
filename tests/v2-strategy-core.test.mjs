@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildGraph, shortestRoute } from '../src/v2/world/graph.js';
-import { createOfficerMission, beginArmyRetreat } from '../src/v2/core/operations.js';
+import {
+  createOfficerMission, beginArmyRetreat, createArmyMarchOperation,
+  createReinforcementOperation
+} from '../src/v2/core/operations.js';
 import {
   createStrategyState, commitCommandPhase, advanceOneDay, executeCurrentWindow,
   beginNextCommandPhase, runStrategicTurn
 } from '../src/v2/core/engine.js';
+import { evaluateArmySupply, advanceArmySupplyOneDay } from '../src/v2/domain/supply.js';
+import { createStrategicBattle } from '../src/v2/domain/battles.js';
+import { markOperationDetected, chooseReactiveResponse } from '../src/v2/ai/reactive.js';
 import { WANO_V2_NODES, WANO_V2_EDGES, createWanoV2Graph } from '../src/v2/data/wano-network.js';
 
 function missionGraph(){
@@ -17,6 +23,13 @@ function missionGraph(){
     {id:'road_a',a:'home',b:'mountain_pass',baseDays:18},
     {id:'road_b',a:'mountain_pass',b:'far_town',baseDays:19}
   ]);
+}
+
+function simpleArmy(id,factionId,nodeId,extra={}){
+  return {
+    id,factionId,officerIds:[],currentNodeId:nodeId,currentEdgeId:null,status:'waiting',
+    troops:2000,supplies:100,morale:100,readiness:100,...extra
+  };
 }
 
 test('route ETA is the sum of explicit strategic edges rather than screen distance',()=>{
@@ -84,7 +97,7 @@ test('failed siege starts a multi-edge retreat and officers never remain station
       luffy:{id:'luffy',factionId:'straw_hat',assignment:{kind:'army',armyId:'army_1'}},
       zoro:{id:'zoro',factionId:'straw_hat',assignment:{kind:'army',armyId:'army_1'}}
     },
-    armies:{army_1:{id:'army_1',factionId:'straw_hat',officerIds:['luffy','zoro'],currentNodeId:'flower_capital',currentEdgeId:null,status:'defeated'}}
+    armies:{army_1:{...simpleArmy('army_1','straw_hat','flower_capital'),officerIds:['luffy','zoro'],status:'defeated'}}
   });
   commitCommandPhase(state);
   const retreat=beginArmyRetreat(state,'army_1',{preferredNodeId:'kibi_camp'});
@@ -101,6 +114,188 @@ test('failed siege starts a multi-edge retreat and officers never remain station
   assert.equal(state.armies.army_1.currentNodeId,'kibi_camp');
   assert.equal(state.armies.army_1.currentEdgeId,null);
   assert.equal(state.armies.army_1.status,'waiting');
+});
+
+test('moving armies consume supplies and a long supply line imposes more daily pressure',()=>{
+  const graph=buildGraph([
+    {id:'home',type:'base',ownerFactionId:'straw_hat'},
+    {id:'near',type:'junction',ownerFactionId:null},
+    {id:'far',type:'junction',ownerFactionId:null}
+  ],[
+    {id:'short',a:'home',b:'near',baseDays:3},
+    {id:'long',a:'near',b:'far',baseDays:12}
+  ]);
+  const state=createStrategyState({graph,armies:{marcher:simpleArmy('marcher','straw_hat','home')}});
+  const op=createArmyMarchOperation(state,{armyId:'marcher',destinationNodeId:'far'});
+  assert.equal(state.armies.marcher.status,'moving');
+  assert.equal(state.armies.marcher.supplies,100);
+  commitCommandPhase(state);
+  advanceOneDay(state);
+  assert.ok(state.armies.marcher.supplies<100,'moving army must consume supply every day');
+
+  const nearArmy=simpleArmy('near_army','straw_hat','near',{originNodeId:'home',supplySourceNodeId:'home'});
+  const farArmy=simpleArmy('far_army','straw_hat','far',{originNodeId:'home',supplySourceNodeId:'home'});
+  const comparison=createStrategyState({graph,armies:{near_army:nearArmy,far_army:farArmy}});
+  const nearInfo=evaluateArmySupply(comparison,comparison.armies.near_army);
+  const farInfo=evaluateArmySupply(comparison,comparison.armies.far_army);
+  assert.ok(farInfo.route.days>nearInfo.route.days);
+  assert.ok(farInfo.dailyNeed>nearInfo.dailyNeed,`long supply line must cost more: short=${nearInfo.dailyNeed}, long=${farInfo.dailyNeed}`);
+  assert.equal(op.route.days,15);
+});
+
+test('cutting the only supply route creates a real supply crisis and readiness loss',()=>{
+  const graph=buildGraph([
+    {id:'home',type:'base',ownerFactionId:'straw_hat'},
+    {id:'front',type:'pass',ownerFactionId:null}
+  ],[
+    {id:'only_road',a:'home',b:'front',baseDays:6}
+  ]);
+  const state=createStrategyState({
+    graph,
+    armies:{front_army:simpleArmy('front_army','straw_hat','front',{originNodeId:'home',supplySourceNodeId:'home'})}
+  });
+  state.blockedSupplyEdges=['only_road'];
+  const before={morale:state.armies.front_army.morale,readiness:state.armies.front_army.readiness};
+  const info=evaluateArmySupply(state,state.armies.front_army);
+  assert.equal(info.state,'cut');
+  advanceArmySupplyOneDay(state);
+  assert.equal(state.armies.front_army.supplyState,'cut');
+  assert.ok(state.armies.front_army.morale<before.morale);
+  assert.ok(state.armies.front_army.readiness<before.readiness);
+});
+
+test('reactive defence does nothing before detection, then physically intercepts at a chokepoint when ETA permits',()=>{
+  const graph=buildGraph([
+    {id:'enemy_base',type:'base',ownerFactionId:'beasts'},
+    {id:'mountain_pass',type:'pass',ownerFactionId:null,concealment:.7},
+    {id:'target',type:'base',ownerFactionId:'kozuki'},
+    {id:'reserve',type:'base',ownerFactionId:'kozuki'}
+  ],[
+    {id:'enemy_to_pass',a:'enemy_base',b:'mountain_pass',baseDays:6},
+    {id:'pass_to_target',a:'mountain_pass',b:'target',baseDays:6},
+    {id:'reserve_to_pass',a:'reserve',b:'mountain_pass',baseDays:2}
+  ]);
+  const state=createStrategyState({
+    graph,
+    armies:{
+      invader:simpleArmy('invader','beasts','enemy_base',{troops:3000}),
+      reserve_army:simpleArmy('reserve_army','kozuki','reserve',{troops:2200})
+    },
+    hostile:(a,b)=>a!==b
+  });
+  const threat=createArmyMarchOperation(state,{armyId:'invader',destinationNodeId:'target',objective:'attack',doctrine:{enemyContact:'engage'}});
+  assert.equal(chooseReactiveResponse(state,'kozuki',threat),null,'perfect information must not be assumed');
+  markOperationDetected(state,'kozuki',threat.id,{confidence:.9});
+  const response=chooseReactiveResponse(state,'kozuki',threat);
+  assert.ok(response);
+  assert.equal(response.type,'intercept');
+  assert.equal(response.destinationNodeId,'mountain_pass');
+  assert.equal(state.armies.reserve_army.status,'moving');
+  assert.equal(state.armies.reserve_army.currentNodeId,null);
+  assert.equal(state.armies.reserve_army.currentEdgeId,'reserve_to_pass');
+});
+
+test('when no useful chokepoint exists, another base sends a physical reinforcement with ETA',()=>{
+  const graph=buildGraph([
+    {id:'enemy_base',type:'base',ownerFactionId:'beasts'},
+    {id:'target',type:'base',ownerFactionId:'kozuki'},
+    {id:'reserve',type:'base',ownerFactionId:'kozuki'}
+  ],[
+    {id:'invasion_road',a:'enemy_base',b:'target',baseDays:8},
+    {id:'reinforce_road',a:'reserve',b:'target',baseDays:3}
+  ]);
+  const state=createStrategyState({
+    graph,
+    armies:{
+      invader:simpleArmy('invader','beasts','enemy_base',{troops:3000}),
+      reserve_army:simpleArmy('reserve_army','kozuki','reserve',{troops:1800})
+    },
+    hostile:(a,b)=>a!==b
+  });
+  const threat=createArmyMarchOperation(state,{armyId:'invader',destinationNodeId:'target',objective:'attack'});
+  markOperationDetected(state,'kozuki',threat.id);
+  const response=chooseReactiveResponse(state,'kozuki',threat);
+  assert.ok(response);
+  assert.equal(response.type,'reinforcement');
+  assert.equal(response.destinationNodeId,'target');
+  assert.equal(response.route.days,3);
+  assert.equal(state.armies.reserve_army.currentEdgeId,'reinforce_road');
+});
+
+test('hostile armies meeting on the same road create a field battle before either reaches a city',()=>{
+  const graph=buildGraph([
+    {id:'west',type:'base',ownerFactionId:'straw_hat'},
+    {id:'east',type:'base',ownerFactionId:'beasts'}
+  ],[
+    {id:'contested_road',a:'west',b:'east',baseDays:5}
+  ]);
+  const state=createStrategyState({
+    graph,
+    armies:{
+      straw:simpleArmy('straw','straw_hat','west'),
+      beasts:simpleArmy('beasts','beasts','east')
+    },
+    hostile:(a,b)=>a!==b
+  });
+  createArmyMarchOperation(state,{armyId:'straw',destinationNodeId:'east',objective:'attack',doctrine:{enemyContact:'engage'}});
+  createArmyMarchOperation(state,{armyId:'beasts',destinationNodeId:'west',objective:'attack',doctrine:{enemyContact:'engage'}});
+  commitCommandPhase(state);
+  advanceOneDay(state);
+  const battles=Object.values(state.battles);
+  assert.equal(battles.length,1);
+  assert.equal(battles[0].status,'ongoing');
+  assert.deepEqual(battles[0].location,{kind:'edge',id:'contested_road'});
+  assert.equal(state.armies.straw.status,'battle');
+  assert.equal(state.armies.beasts.status,'battle');
+  assert.equal(battles[0].elapsedBattleDays,1);
+});
+
+test('reinforcement joins an already ongoing node battle only on its physical arrival day',()=>{
+  const graph=buildGraph([
+    {id:'target',type:'base',ownerFactionId:'kozuki'},
+    {id:'reserve',type:'base',ownerFactionId:'kozuki'}
+  ],[
+    {id:'reinforce_road',a:'reserve',b:'target',baseDays:2}
+  ]);
+  const state=createStrategyState({
+    graph,
+    armies:{
+      attacker:simpleArmy('attacker','beasts','target',{originNodeId:'target'}),
+      defender:simpleArmy('defender','kozuki','target',{originNodeId:'target'}),
+      relief:simpleArmy('relief','kozuki','reserve')
+    },
+    hostile:(a,b)=>a!==b
+  });
+  const battle=createStrategicBattle(state,{location:{kind:'node',id:'target'},attackerArmyId:'attacker',defenderArmyId:'defender'});
+  const reinforcement=createReinforcementOperation(state,{armyId:'relief',destinationNodeId:'target'});
+  assert.equal(reinforcement.route.days,2);
+  commitCommandPhase(state);
+  advanceOneDay(state);
+  assert.ok(!battle.defenderArmyIds.includes('relief'),'reinforcement cannot join before arrival');
+  advanceOneDay(state);
+  assert.ok(battle.defenderArmyIds.includes('relief'));
+  assert.deepEqual(battle.reinforcementArrivals.at(-1),{day:2,armyId:'relief'});
+  assert.equal(state.armies.relief.status,'battle');
+});
+
+test('an unresolved strategic battle survives the 30-day boundary and appears in the monthly report',()=>{
+  const graph=buildGraph([{id:'pass',type:'pass',ownerFactionId:null}],[]);
+  const state=createStrategyState({
+    graph,
+    armies:{
+      a:simpleArmy('a','straw_hat','pass',{originNodeId:'pass',supplies:999}),
+      d:simpleArmy('d','beasts','pass',{originNodeId:'pass',supplies:999})
+    },
+    hostile:(a,b)=>a!==b
+  });
+  const battle=createStrategicBattle(state,{location:{kind:'node',id:'pass'},attackerArmyId:'a',defenderArmyId:'d'});
+  commitCommandPhase(state);
+  const report=executeCurrentWindow(state);
+  assert.equal(state.day,30);
+  assert.equal(state.phase,'report');
+  assert.equal(battle.status,'ongoing');
+  assert.equal(battle.elapsedBattleDays,30);
+  assert.ok(report.ongoingBattleIds.includes(battle.id));
 });
 
 test('strategic AI plans once per monthly command phase while reactive AI is bounded to daily execution',()=>{
