@@ -1,162 +1,161 @@
 # Strategy Core V2 — Implementation Roadmap
 
-This roadmap deliberately prioritizes simulation causality over visual polish.
+This roadmap prioritizes simulation causality over visual polish.
 
 ## Rule
 
-Do not start the next milestone merely because code exists. Advance only when the milestone's acceptance tests pass under deterministic simulation.
+A milestone advances only after deterministic acceptance tests pass. A feature is not considered complete because a UI button exists or because one happy-path scenario works.
 
-## M0 — Foundation reset (current)
+Status legend:
+- ✅ verified foundation
+- 🟡 implemented in part; acceptance surface still incomplete
+- ⬜ not started as a V2 system
+
+## M0 — Foundation reset ✅
 
 Goal: prove time, distance, persistent operations, and physical retreat.
 
-Deliverables:
-- V2 design contract and research synthesis;
-- deterministic 30-day command/execution/report shell;
-- explicit weighted route graph;
+Verified:
+- 30-day Command → Execution → Monthly Report shell;
+- weighted route graph using explicit travel days instead of screen pixels;
 - persistent officer mission lifecycle;
-- physical multi-edge retreat;
-- expanded Wano validation network (40+ nodes, operational waypoints, land + sea edges).
+- 115-day mission crossing multiple monthly windows with physical return;
+- physical node/edge army location;
+- multi-edge retreat and edge withdrawal;
+- expanded Wano operational validation network (40+ nodes / 48+ edges, land + sea);
+- Kibi → Flower Capital requires operational waypoints;
+- cross-region movement can exceed one monthly window;
+- strategic AI hook is monthly while reactive AI is bounded to daily execution.
 
-Gates:
-- 115-day mission crosses multiple months and returns physically;
-- Kibi → Flower Capital requires multiple operational waypoints and meaningful days;
-- a cross-region Wano route can exceed one 30-day window;
-- failed siege removes attacker from hostile city and places it on retreat edge;
-- strategic AI planning hook runs once/month while reactive hook is daily.
-
-## M1 — Supply and campaign movement
+## M1 — Supply and campaign movement 🟡
 
 Goal: make long-distance war expensive and vulnerable.
 
-Implement:
-- army march Operation;
-- daily army supply consumption while moving/waiting/fighting;
-- supply source selection;
-- route capacity / distance / terrain pressure;
-- secure / strained / critical / cut supply states;
-- transport Operation and supply payload capacity;
-- rerouting when a path becomes invalid;
-- march doctrines: enemy contact, retreat threshold, pursue, post-objective behavior.
+Verified now:
+- army march Operation with exact edge progress and ETA;
+- daily supply consumption while moving / waiting / fighting / retreating;
+- explicit supply source and distance stretch;
+- secure / strained / critical / cut states;
+- hostile armies and active battles physically interdict supply routes;
+- morale/readiness consequences from poor supply;
+- saving/loading mid-march preserves exact route and edge-day progress.
 
-Gates:
-- identical army on longer route consumes more total supply;
-- cut supply route changes state and morale/readiness behavior;
-- no free resource teleportation;
-- saving/loading mid-march preserves exact route progress.
+Still required:
+- dedicated Transport Operation in V2 (not merely V1 transport);
+- route capacity and congestion consequences;
+- robust rerouting when an edge becomes invalid;
+- richer march doctrines and explicit precommitted retreat thresholds.
 
-## M2 — Intelligence, threat detection, and reactive defence
+## M2 — Intelligence, threat detection, and reactive defence 🟡
 
-Goal: make the defender react before a siege reaches the city.
+Goal: make defenders react before a siege reaches the city without cheating.
 
-Implement:
-- visibility / last-known enemy operation;
-- estimated ETA and uncertainty;
-- scout Operation;
-- threat evaluation;
-- player defensive doctrine;
-- bounded Reactive AI.
+Verified now:
+- no reaction to an undetected invasion;
+- detected attack operations expose ETA to the defending decision layer;
+- physical reinforcement from another base;
+- physical intercept Operation when a pass/gate/bridge/forest/junction can be reached in time;
+- response is recorded so daily AI does not spam duplicate orders;
+- reinforcement only participates after physical arrival.
 
-Reactive choices:
-- reinforce target;
-- sortie to designated pass/junction;
-- ambush at eligible terrain;
-- raid/cut supply;
-- hold city;
-- evacuate valuable people/items;
-- retreat if defence is hopeless.
+Still required:
+- Scout / intelligence mission Operation;
+- imperfect/decaying last-known information and ETA uncertainty;
+- defensive doctrine settings;
+- source-base minimum-garrison constraint in the mature theater planner;
+- evacuation / raid-supply / hopeless-defense withdrawal choices;
+- failed-response replan lifecycle.
 
-Gates:
-- AI cannot react to an undetected invasion;
-- once detected, eligible nearby base can generate reinforcement with physical ETA;
-- defender chooses a useful chokepoint when interception ETA beats enemy ETA;
-- reaction cannot strip a source base below its doctrine minimum garrison.
+## M3 — Road contact, persistent battles, strongholds and sieges 🟡
 
-## M3 — Road contact, interception, and persistent battles
+Goal: make the space between cities and the strongholds themselves strategically consequential.
 
-Goal: make the space between cities tactically consequential.
+Verified now:
+- opposing armies can meet and fight on a route edge before reaching a city;
+- node battles and edge battles share persistent strategic battle state;
+- daily troop / morale / readiness attrition;
+- supply state affects combat effectiveness;
+- defender terrain modifiers for passes, gates, bridges, forests, bases and ports;
+- reinforcement joins an existing battle only on its physical arrival day;
+- a balanced battle can remain unresolved beyond day 30 and continue next month;
+- defeated edge armies withdraw physically toward their rear instead of teleporting;
+- retreating forces do not immediately re-enter combat because pursuit/chase is outside the current slice;
+- physical enemy road occupation can cut a supply line;
+- 14 Wano strongholds have local money / food / troops / development / morale;
+- garrisons consume local food; starvation reduces morale and eventually causes desertion;
+- persistent siege uses real attacker/garrison troops and morale, not a capture meter;
+- capture changes both settlement owner and map-node owner and can damage development;
+- failed siege physically retreats the attacker;
+- a siege can be interrupted by a relief field battle, survive save/load, and resume if the besieger wins.
 
-Implement:
-- node contact;
-- opposing-edge contact;
-- interception resolution;
-- ambush check;
-- field battle at node/edge;
-- ongoing strategic battle days;
-- reinforcement queue with ETA;
-- retreat/pursuit after battle;
-- battle state crossing a 30-day boundary.
+Still required:
+- defender field-army/garrison coordination at siege start;
+- surrender / prisoner / scatter resolution;
+- richer terrain/ambush rules;
+- siege reinforcement and sortie decision policies;
+- battle handoff to the future manual tactical layer.
 
-Gates:
-- two hostile armies can fight before either reaches a city;
-- a defender can stop an invasion at a pass;
-- reinforcement joins only on physical arrival day;
-- unresolved day-30 battle appears in Monthly Report and resumes next month;
-- defeat produces retreat/capture/scatter, never stale hostile-base location.
+Explicitly deferred:
+- pursuit/chase after retreat. It remains a non-goal for this slice unless the design contract changes.
 
-## M4 — Theater/District and mature faction AI
+## M4 — Organized faction AI 🟡
 
-Goal: make multi-base factions behave like organized states rather than independent city bots.
+Goal: replace independent city-bot behavior with states that campaign, recover, redeploy, and campaign again.
 
-Implement hierarchy:
-- FactionStrategicAI;
-- Theater/District AI;
-- Base AI;
-- Operation/Reactive AI.
+Implemented foundation:
+- monthly strategic faction planner;
+- distinct faction profiles for Straw Hats, Beasts, Kozuki, Kurozumi, Heart, Kid and Big Mom;
+- leader/commander traits affect actual aggression, caution, logistics and opportunism;
+- route distance, estimated enemy strength and projected supply need enter target scoring;
+- aggressive factions accept more risk while cautious/logistical factions demand better conditions;
+- low supply blocks even aggressive expeditions;
+- inactivity pressure prevents a viable faction from remaining passive forever.
 
-Theater responsibilities:
-- frontline/rear classification;
-- reserve base;
-- supply hub;
-- offensive objective;
-- reinforcement priorities;
-- intra-theater resource/personnel transfer.
+Still required:
+- Faction → Theater/District → Base → Operation hierarchy;
+- frontline / rear-area classification;
+- reserve bases and supply hubs;
+- multi-base force concentration and relief priority;
+- local recruitment/economic planning tied to settlements;
+- recovery/rest cycles after losses;
+- diplomacy-aware objectives;
+- 12-month unattended endurance tests showing recurring war/rest/redeployment rather than opening rush then freeze.
 
-Gates:
-- expanding faction does not require global per-base attack spam;
-- rear areas prioritize economy/logistics while fronts prioritize military readiness;
-- faction can recover and resume campaigning after losses without free resources;
-- 12-month unattended simulations show recurring war/rest/redeployment rather than opening rush then freeze.
+## M5 — Personnel, diplomacy, and long missions 🟡 foundation only
 
-## M5 — Personnel, diplomacy, and long missions
+Already proven:
+- generic persistent officer mission can span 100+ days;
+- officer remains reserved until physical return.
 
-Goal: make officer time a strategic resource.
-
-Implement:
-- recruitment travel/task/return;
+Still required as gameplay systems:
+- recruitment target resolution;
 - diplomatic envoy operations;
 - scouting/intelligence missions;
 - officer transfer and summon;
 - prisoner exchange/transport;
 - domestic posts and assignment opportunity cost;
-- operation invalidation when target moves/dies/changes faction.
+- target invalidation / reroute / next-turn replanning.
 
-Gates:
-- 100+ day mission behaves correctly across turns;
-- officer cannot be double-booked;
-- target movement can force reroute/failure/replan at next command phase;
-- physical prisoner/item transfer cannot complete without movement.
+## M6 — One Piece systemic overlay ⬜
 
-## M6 — One Piece systemic overlay
+Goal: add setting-specific rules without bypassing the strategy skeleton.
 
-Goal: add setting-specific rules without breaking the strategy skeleton.
-
-Implement adapters/modifiers for:
+Planned adapters/modifiers:
 - Observation Haki → detection / anti-ambush;
 - Conqueror's Haki → morale/cohesion pressure;
 - Armament Haki → combat matchups;
 - Devil Fruits → tactical + operational modifiers and physical unique objects;
 - named weapons → physical objects;
 - Den Den Mushi → communication latency rules;
-- ships / navigation → sea operations;
-- flight / special mobility → explicit route-mode modifiers.
+- ships/navigation → sea operations;
+- flight/special mobility → explicit route-mode modifiers.
 
 Gate principle:
 No One Piece ability silently bypasses time, supply, detection, or physical location. Every exception must be explicit, inspectable, and testable.
 
-## M7 — Strategic UI / map readability
+## M7 — Strategic UI / map readability ⬜
 
-Only after M0–M6 core state is stable:
+Only after the core state is stable enough to be worth representing:
 - pan/zoom operational map;
 - route/terrain rendering;
 - army markers located on nodes/edges;
@@ -165,36 +164,39 @@ Only after M0–M6 core state is stable:
 - intelligence confidence layer;
 - threat/reinforcement arrows;
 - monthly command queue;
-- execution playback with pause only for allowed interrupts;
-- Monthly Report.
+- 30-day execution playback;
+- Monthly Report;
+- compact stronghold/army/personnel panels.
 
-Phone requirement:
-The whole map must **not** be squeezed into the viewport. Phone is a window onto a larger theater.
+Phone rule:
+The full map must not be squeezed into one viewport. A phone is a camera onto a larger theater, not a poster containing every control at once.
 
-## M8 — Graphics asset pass
+## M8 — Graphics asset pass ⬜
 
-Only after strategic UI scale passes playtest:
+Only after M7 scale/readability passes playtest:
 - Wano strategic-map art;
-- base/fort/port/pass icons;
+- stronghold/fort/port/pass icons;
 - faction emblems;
 - portraits;
 - army markers;
 - route/terrain effects;
 - tactical assets.
 
-Placeholder-first remains mandatory so art does not conceal structural problems.
+Placeholder-first remains mandatory so art does not hide structural problems.
 
-## Long-run validation suite
+## Quality gates that apply from now on
 
-Before V2 can replace V1 as the default playable branch:
-
-- deterministic 30/90/180/360-day simulations across multiple seeds;
+Every meaningful V2 change should preserve:
 - no stale physical locations;
-- no negative/duplicated resources;
-- no double-booked officers;
-- no teleporting operation completion;
-- no permanently orphaned armies/operations;
-- wars continue to produce movement/contact after opening months;
-- peace periods still contain diplomacy, economy, scouting, redeployment;
-- AI and player obey identical costs and path rules;
-- save/load parity at arbitrary days, including active battle and route-edge movement.
+- no simultaneous node+edge occupancy;
+- no negative local resources;
+- no orphaned army/operation/battle/siege references;
+- no duplicate ongoing battle at one exact location;
+- settlement owner and map-node owner stay synchronized;
+- no officer double booking;
+- no teleporting mission/reinforcement/retreat completion;
+- save/load parity during edge movement, active battle, and interrupted siege;
+- player and AI obey the same route/supply costs;
+- no information-cheating reactive AI.
+
+Before V2 replaces V1 as the default playable version, run deterministic 30/90/180/360-day simulations across multiple scenarios/seeds and inspect not only crashes but campaign cadence, faction survival, movement density, resource sustainability, and recurring conflict/recovery cycles.
