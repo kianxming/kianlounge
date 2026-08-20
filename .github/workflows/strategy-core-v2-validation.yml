@@ -1,4 +1,4 @@
-# validation-candidate: 9fd0444f506625787aa27e9ead95c2592927068c
+# validation-candidate: 07c99fe5515eef9b5d777bf9adea99399102c4c6
 name: Strategy Core V2 playable validation and Pages
 
 on:
@@ -28,18 +28,13 @@ jobs:
         with:
           ref: feature/strategy-core-v2
 
-      - name: Capture V2 SHA
+      - name: Capture and assert V2 SHA
         id: feature
         shell: bash
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Assert requested candidate SHA
-        shell: bash
-        env:
-          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
         run: |
-          set -euo pipefail
-          test "$FEATURE_SHA" = "9fd0444f506625787aa27e9ead95c2592927068c"
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          test "$sha" = "07c99fe5515eef9b5d777bf9adea99399102c4c6"
 
       - name: Checkout main for durable validation receipt
         uses: actions/checkout@v4
@@ -81,33 +76,16 @@ jobs:
           from pathlib import Path
           p=Path('src/v2/ui/app.js')
           raw=p.read_bytes().splitlines(keepends=True)
-          if len(raw) < 168:
-              raise SystemExit('Recovered V2 app is shorter than the known-good prefix')
+          if len(raw) < 168: raise SystemExit('Recovered V2 app is shorter than the known-good prefix')
           prefix=b''.join(raw[:168]).decode('utf-8')
-
-          def replace_once(old,new,label):
+          def ro(old,new,label):
               global prefix
-              if old not in prefix:
-                  raise SystemExit(f'missing repair anchor: {label}')
+              if old not in prefix: raise SystemExit(f'missing repair anchor: {label}')
               prefix=prefix.replace(old,new,1)
-
-          replace_once(
-          "function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['open-form-selected','👥','편성'],['defend-selected','🛡','방어'],['support-selected','🏳','지원']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}",
-          "function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['quick-production-selected','🌾','생산'],['open-form-selected','👥','편성'],['open-reinforce-selected','➕','보충']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}",
-          'bottom commands')
-          replace_once(
-          "if(op){toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`);render()}else toast('자원·장수·명령력을 확인하세요.')",
-          "if(op){render();requestAnimationFrame(()=>toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`))}else toast('자원·장수·명령력을 확인하세요.')",
-          'quick command toast')
-          replace_once(
-          "state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};toast('저장된 캠페인을 불러왔습니다.');render()",
-          "state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};render();requestAnimationFrame(()=>toast('저장된 캠페인을 불러왔습니다.'))",
-          'load toast')
-          replace_once(
-          "if(ar){selected={kind:'army',id:ar.id};drawer=null;toast('군단이 편성되었습니다.');render()}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}",
-          "if(ar){selected={kind:'army',id:ar.id};drawer=null;render();requestAnimationFrame(()=>toast('군단이 편성되었습니다.'))}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}",
-          'army form toast')
-
+          ro("function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['open-form-selected','👥','편성'],['defend-selected','🛡','방어'],['support-selected','🏳','지원']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}","function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['quick-production-selected','🌾','생산'],['open-form-selected','👥','편성'],['open-reinforce-selected','➕','보충']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}",'bottom commands')
+          ro("if(op){toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`);render()}else toast('자원·장수·명령력을 확인하세요.')","if(op){render();requestAnimationFrame(()=>toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`))}else toast('자원·장수·명령력을 확인하세요.')",'quick toast')
+          ro("state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};toast('저장된 캠페인을 불러왔습니다.');render()","state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};render();requestAnimationFrame(()=>toast('저장된 캠페인을 불러왔습니다.'))",'load toast')
+          ro("if(ar){selected={kind:'army',id:ar.id};drawer=null;toast('군단이 편성되었습니다.');render()}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}","if(ar){selected={kind:'army',id:ar.id};drawer=null;render();requestAnimationFrame(()=>toast('군단이 편성되었습니다.'))}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}",'form toast')
           tail=r'''  if(a==='target-attack'||a==='target-move'){
             const ar=armyId?state.armies[armyId]:selectedArmy();
             if(!ar)return toast('먼저 대기 중인 군단을 선택하거나 편성하세요.');
@@ -148,28 +126,16 @@ jobs:
             if(ok){drawer=null;render();requestAnimationFrame(()=>toast('군단 보충을 완료했습니다.'))}else toast('주둔 자원·군단 상태·명령력을 확인하세요.');return;
           }
           }
-
           function actionError(err){console.error(err);toast(`명령 오류: ${err?.message||err}`)}
-          document.addEventListener('click',e=>{
-            const btn=e.target.closest('[data-action]');
-            if(btn){if(btn.disabled)return;Promise.resolve(handleAction(btn)).catch(actionError);return}
-            const card=e.target.closest('[data-event-node]');
-            if(card?.dataset.eventNode)focusNode(card.dataset.eventNode);
-          });
-          document.addEventListener('keydown',e=>{
-            if(e.key==='Escape'){
-              if(targetMode){targetMode=null;render();requestAnimationFrame(()=>toast('목표 선택을 취소했습니다.'));return}
-              if(drawer){drawer=null;render();return}
-              if(mobilePanelOpen||showRightPanel){mobilePanelOpen=false;showRightPanel=false;render();}
-            }
-          });
+          document.addEventListener('click',e=>{const btn=e.target.closest('[data-action]');if(btn){if(btn.disabled)return;Promise.resolve(handleAction(btn)).catch(actionError);return}const card=e.target.closest('[data-event-node]');if(card?.dataset.eventNode)focusNode(card.dataset.eventNode);});
+          document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(targetMode){targetMode=null;render();requestAnimationFrame(()=>toast('목표 선택을 취소했습니다.'));return}if(drawer){drawer=null;render();return}if(mobilePanelOpen||showRightPanel){mobilePanelOpen=false;showRightPanel=false;render();}}});
           window.addEventListener('resize',()=>{const map=$('#map-scroll');if(map&&window.innerWidth<760)map.style.scrollBehavior='auto'});
           render();
           '''
           p.write_text(prefix+tail,encoding='utf-8')
           PY
 
-      - name: Syntax check Strategy Core V2 and repaired playable UI
+      - name: Syntax and repository regression tests
         shell: bash
         run: |
           set -euo pipefail
@@ -177,17 +143,15 @@ jobs:
           node --check src/data.js
           node --check src/assets.js
           node --check e2e/v2-final.spec.mjs
+          npm test
 
-      - name: Run Strategy Core V2 and repository regression tests
-        run: npm test
+      - name: Install Playwright and run Chrome V2 E2E
+        shell: bash
+        run: |
+          npm install --no-save @playwright/test@1.55.0
+          npx playwright test e2e/v2-final.spec.mjs --project=chrome-desktop --project=chrome-tablet --project=chrome-iphone
 
-      - name: Install Playwright test runner
-        run: npm install --no-save @playwright/test@1.55.0
-
-      - name: Run real Chrome V2 E2E on desktop, tablet and iPhone viewport
-        run: npx playwright test e2e/v2-final.spec.mjs --project=chrome-desktop --project=chrome-tablet --project=chrome-iphone
-
-      - name: Upload V2 browser traces on failure
+      - name: Upload browser traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
