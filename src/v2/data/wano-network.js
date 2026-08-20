@@ -57,7 +57,7 @@ export const WANO_V2_EDGES=[
   edge('flower_capital','flower_west_gate',2),
   edge('flower_capital','capital_north_road',3),
   edge('flower_south_gate','ebisu',4),
-  edge('flower_west_gate','ebisu_crossroad',4),
+  edge('flower_west_gate','ebisu_crossroad',9,{ambushValue:.35,roadQuality:.7}),
   edge('ebisu','ebisu_crossroad',2),
   edge('ebisu_crossroad','kibi_north_road',3),
   edge('kibi_north_road','kibi_camp',3),
