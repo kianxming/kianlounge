@@ -31,6 +31,10 @@ export function supplyInterdictionForArmy(state,army){
     if(other.currentNodeId)blockedNodes.add(other.currentNodeId);
   }
 
+  for(const settlement of Object.values(state.settlements||{})){
+    if(settlement.ownerFactionId&&hostile(state,army.factionId,settlement.ownerFactionId))blockedNodes.add(settlement.nodeId);
+  }
+
   for(const battle of Object.values(state.battles||{})){
     if(battle.status!=='ongoing')continue;
     const involved=[...battle.attackerArmyIds,...battle.defenderArmyIds].map(id=>state.armies[id]).filter(Boolean);
@@ -73,7 +77,7 @@ export function evaluateArmySupply(state,army){
 
 export function advanceArmySupplyOneDay(state){
   for(const army of Object.values(state.armies)){
-    if(!['moving','waiting','battle','retreating','routed'].includes(army.status))continue;
+    if(!['moving','waiting','battle','siege','retreating','routed'].includes(army.status))continue;
     const info=evaluateArmySupply(state,army);
     army.supplyState=info.state;
     army.supplyRouteEdgeIds=info.route?.edgeIds||[];
