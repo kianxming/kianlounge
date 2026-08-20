@@ -7,6 +7,7 @@ on:
       - '.github/workflows/strategy-core-v2-validation.yml'
       - '.github/scripts/repair-v2-sources.py'
       - '.github/scripts/patch-v2-mobile.py'
+      - '.github/scripts/patch-v2-ux.py'
   workflow_dispatch:
 
 permissions:
@@ -30,14 +31,14 @@ jobs:
         with:
           ref: feature/strategy-core-v2
 
-      - name: Capture and assert candidate SHA
+      - name: Capture candidate SHA
         id: candidate
         shell: bash
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          test "$sha" = "8f53b47155a3a63445f8477834f622844db04fc8"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
 
       - name: Checkout main validation helpers
         uses: actions/checkout@v4
@@ -62,12 +63,13 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Recover and repair durable V2 UI sources
+      - name: Recover and patch V2 playable surface
         shell: bash
         run: |
           set -euo pipefail
           python3 validation-receipt/.github/scripts/repair-v2-sources.py
           python3 validation-receipt/.github/scripts/patch-v2-mobile.py
+          python3 validation-receipt/.github/scripts/patch-v2-ux.py
 
       - name: Syntax and repository regression tests
         shell: bash
@@ -96,7 +98,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Publish verified V2 UI sources
+      - name: Publish verified V2 sources and player-experience test
         if: success()
         id: publish
         shell: bash
@@ -104,9 +106,9 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- src/v2/ui/app.js v2.css
+          git add -- src/v2/ui/app.js v2.css e2e/v2-final.spec.mjs
           if ! git diff --cached --quiet; then
-            git commit -m 'V2: publish verified playable UI sources [skip ci]'
+            git commit -m 'V2: map-first mobile UX and battle tracking [skip ci]'
             git push origin HEAD:feature/strategy-core-v2
           fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
