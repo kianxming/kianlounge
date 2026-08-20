@@ -1,4 +1,4 @@
-# validation-candidate: 345299159f3af92f748a10c172e00990992b3a09
+# validation-candidate: a97bf2c9c8d83db06a359c39997443d237baf69e
 name: Strategy Core V2 validation
 
 on:
@@ -42,13 +42,7 @@ jobs:
           if ! git diff --cached --quiet; then git commit -m "[skip ci] Record Strategy Core V2 validation start"; git push origin HEAD:main; fi
       - name: Syntax check V2 core
         run: |
-          for f in \
-            src/v2/world/graph.js \
-            src/v2/core/operations.js src/v2/core/engine.js src/v2/core/save.js \
-            src/v2/data/wano-network.js src/v2/data/wano-settlements.js src/v2/data/wano-scenario.js \
-            src/v2/domain/supply.js src/v2/domain/battles.js src/v2/domain/settlements.js src/v2/domain/sieges.js src/v2/domain/invariants.js \
-            src/v2/domain/diplomacy.js src/v2/domain/commands.js src/v2/domain/missions.js src/v2/domain/onepiece.js src/v2/domain/recovery.js src/v2/domain/transports.js \
-            src/v2/ai/reactive.js src/v2/ai/strategic.js src/v2/ai/theater.js src/v2/ai/director.js; do node --check "$f"; done
+          for f in src/v2/world/graph.js src/v2/core/*.js src/v2/data/wano-*.js src/v2/domain/*.js src/v2/ai/*.js; do node --check "$f"; done
       - name: Run V2 strategy-core tests
         run: node --test tests/v2-*.test.mjs
       - name: Run repository regression suite
