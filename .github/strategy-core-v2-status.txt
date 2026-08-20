@@ -1,4 +1,4 @@
-status=running
+status=failure
 page_url=
 feature_sha=438fad2ddd60590178a2e63a2c9c9dbda1a37811
 published_sha=
