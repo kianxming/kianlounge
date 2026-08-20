@@ -5,7 +5,7 @@ export const faction=o=>o==='straw_hat'?'밀짚모자 동맹':o==='beasts'?'백�
 export function top(sim){
   const title=sim.mode==='village'?sim.townName:sim.mode==='scout'&&sim.scout?sim.scout.name:sim.mode==='battle'?'전투':'와노쿠니';
   const sub=sim.mode==='scout'?`정찰 관찰 · 제 ${sim.day}일 · ${sim.formatTime()}`:`제 ${sim.day}일 · ${sim.formatTime()}`;
-  return `<header class="topbar"><div><b>${title}</b><small>${sub}</small></div><div class="hud"><span>💰 ${sim.money.toLocaleString()}B</span><span>⭐ ${sim.fame}</span><span>${'★'.repeat(sim.townRank)}${'☆'.repeat(5-sim.townRank)}</span></div></header>`;
+  return `<header class="topbar"><div><b>${title}</b><small>${sub}${sim.paused?' · ⏸ 중요 상황':''}</small></div><div class="hud"><span>💰 ${sim.money.toLocaleString()}B</span><span>⭐ ${sim.fame}</span><span>${'★'.repeat(sim.townRank)}${'☆'.repeat(5-sim.townRank)}</span></div></header>`;
 }
 
 export function nav(sim){
@@ -36,8 +36,8 @@ export function scout(sim){
 }
 
 export function world(sim){
-  const nodes=Object.values(sim.settlements).map(s=>`<button class="node ${s.owner==='straw_hat'?'ally':'enemy'}" data-node="${s.id}" style="left:${s.x}%;top:${s.y}%"><b>${s.kind==='요새'?'🏯':s.kind==='감옥도시'?'⛓️':'🏘️'}</b><span>${s.name}</span></button>`).join('');
-  const armies=sim.armies.filter(a=>!a.done).map(a=>{const f=sim.settlements[a.from],t=sim.settlements[a.target],x=f.x+(t.x-f.x)*a.progress,y=f.y+(t.y-f.y)*a.progress;const names=a.charIds.map(id=>sim.characters.find(c=>c.id===id)?.name).filter(Boolean).join('·');return`<div class="march" style="left:${x}%;top:${y}%">🚩<span>${names}</span><em>${Math.round(a.progress*100)}%</em></div>`;}).join('');
+  const nodes=Object.values(sim.settlements).map(s=>`<button class="node ${s.owner==='straw_hat'?'ally':'enemy'}" data-node="${s.id}" style="left:${s.x}%;top:${s.y}%"><b>${s.kind==='요새'?'🏯':s.kind==='감옥도시'?'⛓️':'🏘️'}</b><span>${s.name}<small>${s.troops.toLocaleString()}</small></span></button>`).join('');
+  const armies=sim.armies.filter(a=>!a.done).map(a=>{const f=sim.settlements[a.from],t=sim.settlements[a.target],x=f.x+(t.x-f.x)*a.progress,y=f.y+(t.y-f.y)*a.progress;const names=a.charIds.map(nameOf).join('·');return`<div class="march ${a.owner==='straw_hat'?'ally':'enemy'}" style="left:${x}%;top:${y}%">${a.owner==='straw_hat'?'🚩':'☠️'}<span>${names||'수비대'}${a.returning?' · 귀환 중':''}</span><em>${Math.round(a.progress*100)}%</em></div>`;}).join('');
   return `<section class="world"><div class="island"></div>${nodes}${armies}<div class="ticker">${sim.log[0]||''}</div></section>`;
 }
 
@@ -45,10 +45,13 @@ export function battle(sim){
   const b=sim.battle;if(!b)return'<div class="empty">전투 없음</div>';
   const focusCounts=Object.values(b.focus).reduce((m,id)=>(m[id]=(m[id]||0)+1,m),{});
   const side=(a,s)=>a.map(f=>{const target=b.focus[f.id],duel=s==='enemy'&&focusCounts[f.id]?`<em>${focusCounts[f.id]}:1 교전</em>`:'';return`<button class="fighter ${s} ${f.down?'down':''} ${b.selectedAlly===f.id?'selected':''}" data-fighter="${f.id}" data-side="${s}"><i>${f.name.slice(0,1)}</i><b>${f.name}</b><span><u style="width:${f.hp}%"></u></span>${s==='ally'&&target?`<em>→ ${b.enemies.find(e=>e.id===target)?.name}</em>`:duel}</button>`;}).join('');
-  return `<section class="battle"><div class="battle-head"><span>아군 ${Math.round(b.allyTroops)}${b.allyLineBroken?' · 전선 붕괴':''}</span><b>⚔ 전투</b><span>적군 ${Math.round(b.enemyTroops)}${b.enemyLineBroken?' · 전선 붕괴':''}</span></div><div class="field"><div>${side(b.allies,'ally')}</div><strong>💥</strong><div>${side(b.enemies,'enemy')}</div></div><div class="battle-log">${b.log.slice(0,4).map(x=>`<span>${x}</span>`).join('')}</div><small class="help">아군 캐릭터 → 적장을 누르면 1:1·다대1 교전을 지정</small>${b.finished?`<button class="result" data-action="battle-done">${b.victory?'승리!':'후퇴'} →</button>`:''}</section>`;
+  return `<section class="battle"><div class="battle-head"><span>아군 ${Math.round(b.allyTroops)}${b.allyLineBroken?' · 전선 붕괴':''}</span><b>⚔ ${b.playerSide==='defender'?'방어전':'공격전'}</b><span>적군 ${Math.round(b.enemyTroops)}${b.enemyLineBroken?' · 전선 붕괴':''}</span></div><div class="field"><div>${side(b.allies,'ally')}</div><strong>💥</strong><div>${side(b.enemies,'enemy')}</div></div><div class="battle-log">${b.log.slice(0,4).map(x=>`<span>${x}</span>`).join('')}</div><small class="help">아군 캐릭터 → 적장을 누르면 1:1·다대1 교전을 지정</small>${b.finished?`<button class="result" data-action="battle-done">${b.victory?'승리!':'패배'} →</button>`:''}</section>`;
 }
 
 export function encounter(sim){
-  if(!sim.encounter)return'';const a=sim.armies.find(x=>x.id===sim.encounter.armyId),t=sim.settlements[sim.encounter.targetId];
-  return `<div class="shade"><section class="sheet"><h2>⚔ 군단 조우!</h2><div class="vs"><div><b>밀짚모자 동맹</b><small>${a.charIds.map(id=>sim.characters.find(c=>c.id===id)?.name).join(' · ')}</small><strong>병력 ${a.troops}</strong></div><i>VS</i><div><b>${faction(t.owner)}</b><small>${t.chars.map(nameOf).join(' · ')||'수비대'}</small><strong>병력 ${t.troops}</strong></div></div><div class="actions"><button data-action="battle-view">전투 보기</button><button data-action="battle-auto">자동 전투</button></div></section></div>`;
+  if(!sim.encounter)return'';const a=sim.armies.find(x=>x.id===sim.encounter.armyId),t=sim.settlements[sim.encounter.targetId];if(!a||!t)return'';
+  const defender=sim.encounter.playerSide==='defender';
+  const leftChars=defender?t.chars:a.charIds,leftTroops=defender?t.troops:a.troops,leftFaction='밀짚모자 동맹';
+  const rightChars=defender?a.charIds:t.chars,rightTroops=defender?a.troops:t.troops,rightFaction=defender?faction(a.owner):faction(t.owner);
+  return `<div class="shade"><section class="sheet"><h2>⚔ 군단 조우! <small>자동 일시정지</small></h2><div class="vs"><div><b>${leftFaction}</b><small>${leftChars.map(nameOf).join(' · ')||'수비대'}</small><strong>병력 ${leftTroops}</strong></div><i>VS</i><div><b>${rightFaction}</b><small>${rightChars.map(nameOf).join(' · ')||'수비대'}</small><strong>병력 ${rightTroops}</strong></div></div><div class="actions"><button data-action="battle-view">전투 보기</button><button data-action="battle-auto">자동 전투</button></div></section></div>`;
 }
