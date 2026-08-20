@@ -20,7 +20,7 @@ test.describe('Wano Strategy Core V2 final playable surface',()=>{
     await expect(page.getByText(/군단이 편성되었습니다/)).toBeVisible();
 
     await page.locator('[data-action="target-attack"]').first().click();
-    await page.getByRole('button',{name:'바쿠라'}).click();
+    await page.getByRole('button',{name:'바쿠라',exact:true}).click();
     await expect(page.getByText(/바쿠라.*ETA|ETA.*일/).first()).toBeVisible({timeout:4000}).catch(()=>{});
 
     await page.locator('[data-action="save"]').click();
@@ -49,6 +49,10 @@ test.describe('Wano Strategy Core V2 final playable surface',()=>{
     await expect(page.locator('.side-panel.left.open')).toBeVisible();
     const map=page.locator('#map-scroll');
     const dims=await map.evaluate(el=>({sw:el.scrollWidth,cw:el.clientWidth,sh:el.scrollHeight,ch:el.clientHeight}));
+    const viewport=await page.evaluate(()=>({iw:window.innerWidth,doc:document.documentElement.scrollWidth,body:document.body.scrollWidth}));
+    expect(dims.cw).toBeLessThanOrEqual(viewport.iw+1);
+    expect(viewport.doc).toBeLessThanOrEqual(viewport.iw+1);
+    expect(viewport.body).toBeLessThanOrEqual(viewport.iw+1);
     expect(dims.sw).toBeGreaterThan(dims.cw);
     expect(dims.sh).toBeGreaterThan(dims.ch);
     await page.locator('[data-action="toggle-left"]').tap();
