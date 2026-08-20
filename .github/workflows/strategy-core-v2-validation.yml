@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          test "$sha" = "438fad2ddd60590178a2e63a2c9c9dbda1a37811"
+          test "$sha" = "8f53b47155a3a63445f8477834f622844db04fc8"
 
       - name: Checkout main validation helpers
         uses: actions/checkout@v4
@@ -125,7 +125,7 @@ jobs:
           test -f _site/index.html
           test -f _site/v2.css
           test -f _site/src/v2/ui/app.js
-          test -f _site/assets/v3/wano-terrain.jpg
+          test -f _site/assets/v3/wano-terrain.svg
           test ! -e _site/node_modules
           test ! -e _site/test-results
           test ! -e _site/validation-receipt
