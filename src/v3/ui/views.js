@@ -9,8 +9,8 @@ export function top(sim){
 }
 
 export function nav(sim){
-  const worldOn=['world','scout'].includes(sim.mode);
-  return `<nav class="bottom-nav"><button data-nav="village" class="${sim.mode==='village'?'on':''}">🏯<span>영지</span></button><button data-nav="mates">👥<span>동료</span></button><button data-nav="sortie">⚔️<span>출정</span></button><button data-nav="world" class="${worldOn?'on':''}">🌏<span>세계</span></button><button data-nav="menu">☰<span>메뉴</span></button></nav>`;
+  const locked=sim.mode==='battle'||!!sim.encounter,worldOn=['world','scout'].includes(sim.mode);
+  return `<nav class="bottom-nav ${locked?'locked':''}"><button data-nav="village" class="${sim.mode==='village'?'on':''}" ${locked?'disabled':''}>🏯<span>영지</span></button><button data-nav="mates" ${locked?'disabled':''}>👥<span>동료</span></button><button data-nav="sortie" ${locked?'disabled':''}>⚔️<span>출정</span></button><button data-nav="world" class="${worldOn?'on':''}" ${locked?'disabled':''}>🌏<span>세계</span></button><button data-nav="menu" ${locked?'disabled':''}>☰<span>메뉴</span></button></nav>`;
 }
 
 function roadsHtml(roads){return[...roads].map(k=>{const[x,y]=k.split(',');return`<i class="road" style="--x:${x};--y:${y}"></i>`;}).join('');}
@@ -45,7 +45,8 @@ export function battle(sim){
   const b=sim.battle;if(!b)return'<div class="empty">전투 없음</div>';
   const focusCounts=Object.values(b.focus).reduce((m,id)=>(m[id]=(m[id]||0)+1,m),{});
   const side=(a,s)=>a.map(f=>{const target=b.focus[f.id],duel=s==='enemy'&&focusCounts[f.id]?`<em>${focusCounts[f.id]}:1 교전</em>`:'';return`<button class="fighter ${s} ${f.down?'down':''} ${b.selectedAlly===f.id?'selected':''}" data-fighter="${f.id}" data-side="${s}"><i>${f.name.slice(0,1)}</i><b>${f.name}</b><span><u style="width:${f.hp}%"></u></span>${s==='ally'&&target?`<em>→ ${b.enemies.find(e=>e.id===target)?.name}</em>`:duel}</button>`;}).join('');
-  return `<section class="battle"><div class="battle-head"><span>아군 ${Math.round(b.allyTroops)}${b.allyLineBroken?' · 전선 붕괴':''}</span><b>⚔ ${b.playerSide==='defender'?'방어전':'공격전'}</b><span>적군 ${Math.round(b.enemyTroops)}${b.enemyLineBroken?' · 전선 붕괴':''}</span></div><div class="field"><div>${side(b.allies,'ally')}</div><strong>💥</strong><div>${side(b.enemies,'enemy')}</div></div><div class="battle-log">${b.log.slice(0,4).map(x=>`<span>${x}</span>`).join('')}</div><small class="help">아군 캐릭터 → 적장을 누르면 1:1·다대1 교전을 지정</small>${b.finished?`<button class="result" data-action="battle-done">${b.victory?'승리!':'패배'} →</button>`:''}</section>`;
+  const cmd=b.commandUsed||{};
+  return `<section class="battle"><div class="battle-head"><span>아군 ${Math.round(b.allyTroops)}${b.allyLineBroken?' · 전선 붕괴':''}</span><b>⚔ ${b.playerSide==='defender'?'방어전':'공격전'}</b><span>적군 ${Math.round(b.enemyTroops)}${b.enemyLineBroken?' · 전선 붕괴':''}</span></div><div class="field"><div>${side(b.allies,'ally')}</div><strong>💥</strong><div>${side(b.enemies,'enemy')}</div></div><div class="battle-log">${b.log.slice(0,4).map(x=>`<span>${x}</span>`).join('')}</div><div class="battle-commands"><button data-command="assault" ${cmd.assault?'disabled':''}>📣 총공격</button><button data-command="rally" ${cmd.rally?'disabled':''}>🔥 사기</button><button data-command="auto">🔄 자율</button><button data-command="special" ${cmd.special?'disabled':''}>✨ 필살기</button></div><small class="help">캐릭터를 누른 뒤 적장을 누르면 1:1·다대1 교전을 지정</small>${b.finished?`<button class="result" data-action="battle-done">${b.victory?'승리!':'패배'} →</button>`:''}</section>`;
 }
 
 export function encounter(sim){
