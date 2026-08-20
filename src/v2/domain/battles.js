@@ -65,7 +65,9 @@ function attachReinforcement(state,battle,army){
 }
 
 function contactAllowed(state,army){
+  if(['retreating','routed','stranded'].includes(army.status))return false;
   const op=activeOperation(state,army);
+  if(['army_retreat','army_withdrawal'].includes(op?.type))return false;
   return op?.doctrine?.enemyContact!=='avoid';
 }
 
