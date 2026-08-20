@@ -29,8 +29,9 @@ test.describe('Wano Strategy Core V2 final playable surface',()=>{
     await page.locator('[data-action="speed"][data-speed="4"]').click();
     await page.locator('[data-action="commit-month"]').click();
     await expect(page.getByText('30일 실행').first()).toBeVisible();
-    await expect(page.locator('.report-overlay.show')).toBeVisible({timeout:20000});
-    await expect(page.getByText(/월간 보고/).first()).toBeVisible();
+    const report=page.locator('.report-overlay.show');
+    await expect(report).toBeVisible({timeout:20000});
+    await expect(report.getByText(/월간 보고/).first()).toBeVisible();
     await page.locator('[data-action="next-month"]').click();
     await expect(page.getByText('2턴 · 30일째')).toBeVisible();
 
