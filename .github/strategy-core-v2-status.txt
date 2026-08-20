@@ -1,4 +1,4 @@
-status=running
+status=failure
 page_url=
 feature_sha=07c99fe5515eef9b5d777bf9adea99399102c4c6
 run_id=32339741945
