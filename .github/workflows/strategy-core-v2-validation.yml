@@ -1,4 +1,4 @@
-# validation-candidate: b4092ebcee633d8a7f69b29a9c8f90177b181c09
+# validation-candidate: 2e1c64a2fc654d0b626acbd157685a3c103cbd34
 name: Strategy Core V2 validation
 
 on:
@@ -66,7 +66,7 @@ jobs:
           node --check src/v2/ai/strategic.js
 
       - name: Run V2 strategy-core tests
-        run: node --test tests/v2-strategy-core.test.mjs tests/v2-battle-supply.test.mjs tests/v2-invariants.test.mjs tests/v2-strategic-ai.test.mjs tests/v2-save-load.test.mjs tests/v2-siege-settlement.test.mjs
+        run: node --test tests/v2-strategy-core.test.mjs tests/v2-battle-supply.test.mjs tests/v2-invariants.test.mjs tests/v2-strategic-ai.test.mjs tests/v2-save-load.test.mjs tests/v2-siege-settlement.test.mjs tests/v2-system-integration.test.mjs
 
       - name: Run repository regression suite
         run: npm test
