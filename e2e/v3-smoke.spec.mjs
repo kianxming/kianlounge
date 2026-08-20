@@ -64,10 +64,17 @@ test.describe('Wano Kairo V3 vertical slice',()=>{
     expect(errors).toEqual([]);
   });
 
-  test('treasure gifting, manual save and iphone compact UI work',async({page},testInfo)=>{
+  test('visible prisoners, treasure gifting, manual save and iphone compact UI work',async({page},testInfo)=>{
     const errors=watchErrors(page);
     await page.goto('/v3.html');
+
+    // Captured named characters are visible inside the actual prison building.
+    await page.evaluate(()=>window.__V3__.sim.capture('king','onigashima'));
+    await expect(page.getByText('킹 ⛓')).toBeVisible({timeout:3000});
+    await expect(page.locator('.chara')).toHaveCount(9);
+
     await page.getByRole('button',{name:/메뉴/}).click();
+    await expect(page.getByRole('button',{name:/감옥 \/ 포로 1/})).toBeVisible();
     await page.getByRole('button',{name:/보물고/}).click();
     await page.getByRole('button',{name:/이글이글 열매/}).click();
     await page.locator('[data-gift-char="usopp"]').click();
