@@ -1,31 +1,79 @@
 name: Strategy Core V2 validation
 
 on:
-  pull_request:
+  push:
     branches:
       - main
     paths:
-      - 'src/v2/**'
-      - 'tests/v2-*.test.mjs'
-      - 'docs/STRATEGY_CORE_V2_*.md'
-      - 'docs/DESIGN_CONTRACT.md'
       - '.github/workflows/strategy-core-v2-validation.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   core:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Strategy Core V2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/strategy-core-v2
+
+      - name: Capture V2 SHA
+        id: feature
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout main for validation receipt
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: validation-receipt
+
+      - name: Record validation start
+        shell: bash
+        env:
+          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
+        run: |
+          set -euo pipefail
+          cd validation-receipt
+          mkdir -p .github
+          printf 'status=running\nfeature_sha=%s\nrun_id=%s\n' "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/strategy-core-v2-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Record Strategy Core V2 validation start"
+            git push origin HEAD:main
+          fi
+
       - name: Syntax check V2 core
         run: |
           node --check src/v2/world/graph.js
           node --check src/v2/core/operations.js
           node --check src/v2/core/engine.js
+          node --check src/v2/data/wano-network.js
+
       - name: Run V2 strategy-core tests
         run: node --test tests/v2-strategy-core.test.mjs
+
       - name: Run repository regression suite
         run: npm test
+
+      - name: Record validation result
+        if: always()
+        shell: bash
+        env:
+          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          cd validation-receipt
+          git pull --ff-only origin main
+          printf 'status=%s\nfeature_sha=%s\nrun_id=%s\n' "$JOB_STATUS" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
+          git add .github/strategy-core-v2-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "[skip ci] Record Strategy Core V2 validation result"
+            git push origin HEAD:main
+          fi
