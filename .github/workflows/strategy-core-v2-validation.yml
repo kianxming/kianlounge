@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/strategy-core-v2-validation.yml'
       - '.github/scripts/repair-v2-sources.py'
+      - '.github/scripts/patch-v2-mobile.py'
   workflow_dispatch:
 
 permissions:
@@ -62,7 +63,11 @@ jobs:
           fi
 
       - name: Recover and repair durable V2 UI sources
-        run: python3 validation-receipt/.github/scripts/repair-v2-sources.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 validation-receipt/.github/scripts/repair-v2-sources.py
+          python3 validation-receipt/.github/scripts/patch-v2-mobile.py
 
       - name: Syntax and repository regression tests
         shell: bash
