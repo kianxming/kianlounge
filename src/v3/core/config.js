@@ -28,7 +28,7 @@ export const PREFS={
 export const START={luffy:[8,11],zoro:[5,11],sanji:[10,11],nami:[12,11],usopp:[3,11],chopper:[14,11],robin:[7,11],franky:[16,11]};
 const KO={luffy:'루피',zoro:'조로',sanji:'상디',nami:'나미',usopp:'우솝',chopper:'쵸파',robin:'로빈',franky:'프랑키',law:'로',king:'킹',queen:'퀸',jack:'잭',ulti:'울티',page_one:'페이지원',kaido:'카이도'};
 export const coreOf=id=>CHARACTERS.find(c=>c.id===id)||{};
-export const nameOf=id=>coreOf(id).name||KO[id]||id;
+export const nameOf=id=>KO[id]||coreOf(id).name||id;
 export const key=(x,y)=>`${x},${y}`;
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const pick=a=>a[Math.floor(Math.random()*a.length)];
