@@ -25,7 +25,9 @@ export function village(sim,ui){
       if(ok)cells+=`<button class="build-cell ${ui.buildType==='__road__'?'road-cell':''}" data-build-x="${x}" data-build-y="${y}" style="--x:${x};--y:${y}"></button>`;
     }
   }
-  return `<section class="village"><div class="vtools"><button data-action="build">🔨 건설</button><button data-action="rank">${'★'.repeat(sim.townRank)} 거점</button></div><div class="grid" style="--cols:${GRID.w};--rows:${GRID.h}">${roadsHtml(sim.roads)}${facilitiesHtml(sim.facilities)}${charsHtml(sim.activeCharacters())}${cells}</div><div class="ticker">${sim.log[0]||''}</div></section>`;
+  const buildLabel=ui.buildType?(ui.buildType==='__road__'?'🛤️ 길 배치 종료':`✕ ${FACILITIES[ui.buildType]?.name||'건설'} 배치 종료`):'🔨 건설';
+  const buildAction=ui.buildType?'cancel-build':'build';
+  return `<section class="village"><div class="vtools"><button data-action="${buildAction}">${buildLabel}</button><button data-action="rank">${'★'.repeat(sim.townRank)} 거점</button></div><div class="grid" style="--cols:${GRID.w};--rows:${GRID.h}">${roadsHtml(sim.roads)}${facilitiesHtml(sim.facilities)}${charsHtml(sim.activeCharacters())}${cells}</div><div class="ticker">${sim.log[0]||''}</div></section>`;
 }
 
 export function scout(sim){
