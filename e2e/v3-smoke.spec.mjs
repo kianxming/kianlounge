@@ -1,10 +1,15 @@
 import { test, expect } from '@playwright/test';
 
+function watchErrors(page){
+  const errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+  return errors;
+}
+
 test.describe('Wano Kairo V3 vertical slice',()=>{
   test('village life, live scout, target-first sortie and character clash battle',async({page})=>{
-    const errors=[];
-    page.on('pageerror',e=>errors.push(e.message));
-    page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+    const errors=watchErrors(page);
 
     await page.goto('/v3.html');
     await expect(page.getByText('꽃의 도시').first()).toBeVisible();
@@ -60,6 +65,7 @@ test.describe('Wano Kairo V3 vertical slice',()=>{
   });
 
   test('treasure gifting, manual save and iphone compact UI work',async({page},testInfo)=>{
+    const errors=watchErrors(page);
     await page.goto('/v3.html');
     await page.getByRole('button',{name:/메뉴/}).click();
     await page.getByRole('button',{name:/보물고/}).click();
@@ -82,8 +88,6 @@ test.describe('Wano Kairo V3 vertical slice',()=>{
       await page.getByRole('button',{name:/바쿠라/}).tap();
       await expect(page.locator('.mini.world-pop')).toBeVisible();
     }
-    expect(errorsFromPage(page)).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });
-
-function errorsFromPage(){return[];}
