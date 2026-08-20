@@ -1,4 +1,4 @@
-# validation-candidate: a7dbe49f55d69c80ec13d94eab819927148a732d
+# validation-candidate: 1c9be7404fa0aac3289f1a7904cf3aeb337edf69
 name: Strategy Core V2 validation
 
 on:
@@ -57,10 +57,11 @@ jobs:
           node --check src/v2/data/wano-network.js
           node --check src/v2/domain/supply.js
           node --check src/v2/domain/battles.js
+          node --check src/v2/domain/invariants.js
           node --check src/v2/ai/reactive.js
 
       - name: Run V2 strategy-core tests
-        run: node --test tests/v2-strategy-core.test.mjs tests/v2-battle-supply.test.mjs
+        run: node --test tests/v2-strategy-core.test.mjs tests/v2-battle-supply.test.mjs tests/v2-invariants.test.mjs
 
       - name: Run repository regression suite
         run: npm test
