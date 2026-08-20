@@ -1,10 +1,11 @@
-# validation-candidate: 07c99fe5515eef9b5d777bf9adea99399102c4c6
 name: Strategy Core V2 playable validation and Pages
 
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/strategy-core-v2-validation.yml']
+    paths:
+      - '.github/workflows/strategy-core-v2-validation.yml'
+      - '.github/scripts/repair-v2-sources.py'
   workflow_dispatch:
 
 permissions:
@@ -23,20 +24,21 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact Strategy Core V2 branch
+      - name: Checkout Strategy Core V2 candidate
         uses: actions/checkout@v4
         with:
           ref: feature/strategy-core-v2
 
-      - name: Capture and assert V2 SHA
-        id: feature
+      - name: Capture and assert candidate SHA
+        id: candidate
         shell: bash
         run: |
+          set -euo pipefail
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          test "$sha" = "07c99fe5515eef9b5d777bf9adea99399102c4c6"
+          test "$sha" = "bd39a47cf0b7aca5fbd8ea80c3f01cb9876383eb"
 
-      - name: Checkout main for durable validation receipt
+      - name: Checkout main validation helpers
         uses: actions/checkout@v4
         with:
           ref: main
@@ -45,12 +47,12 @@ jobs:
       - name: Record validation start
         shell: bash
         env:
-          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
+          FEATURE_SHA: ${{ steps.candidate.outputs.sha }}
         run: |
           set -euo pipefail
           cd validation-receipt
           mkdir -p .github
-          printf 'status=running\npage_url=\nfeature_sha=%s\nrun_id=%s\n' "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
+          printf 'status=running\npage_url=\nfeature_sha=%s\npublished_sha=\nrun_id=%s\n' "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- .github/strategy-core-v2-status.txt
@@ -59,81 +61,8 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Recover compressed V2 UI payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p src/v2/ui
-          gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js || true
-          gzip -dc .build/v2.css.gz > v2.css || true
-          test -s src/v2/ui/app.js
-          test -s v2.css
-
-      - name: Repair damaged V2 app tail deterministically
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('src/v2/ui/app.js')
-          raw=p.read_bytes().splitlines(keepends=True)
-          if len(raw) < 168: raise SystemExit('Recovered V2 app is shorter than the known-good prefix')
-          prefix=b''.join(raw[:168]).decode('utf-8')
-          def ro(old,new,label):
-              global prefix
-              if old not in prefix: raise SystemExit(f'missing repair anchor: {label}')
-              prefix=prefix.replace(old,new,1)
-          ro("function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['open-form-selected','👥','편성'],['defend-selected','🛡','방어'],['support-selected','🏳','지원']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}","function renderBottom(){const disabled=state.phase!=='command';const cmds=[['target-attack','⚔','출정'],['open-transport','🛒','수송'],['open-scout','🔭','정찰'],['open-diplomacy','🤝','외교'],['open-recruit-officer','🎖','등용'],['quick-develop-selected','🔨','개발'],['quick-recruit-selected','🚩','모집'],['quick-production-selected','🌾','생산'],['open-form-selected','👥','편성'],['open-reinforce-selected','➕','보충']];return `<footer class=\"bottom-bar\">${cmds.map(([a,i,t])=>`<button class=\"cmd\" data-action=\"${a}\" ${disabled?'disabled':''}><i>${i}</i><span>${t}</span></button>`).join('')}<button class=\"commit\" data-action=\"commit-month\" ${state.phase==='execution'?'disabled':''}>${state.phase==='command'?'30일 실행':state.phase==='report'?'다음 달':'실행 중'}</button></footer>`}",'bottom commands')
-          ro("if(op){toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`);render()}else toast('자원·장수·명령력을 확인하세요.')","if(op){render();requestAnimationFrame(()=>toast(`${o.name}: ${kind==='develop'?'개발':kind==='recruit'?'모집':'생산'} 명령 접수`))}else toast('자원·장수·명령력을 확인하세요.')",'quick toast')
-          ro("state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};toast('저장된 캠페인을 불러왔습니다.');render()","state=deserializeStrategyState(raw);lastEventIndex=state.events.length;selected={kind:'node',id:state.factions[state.playerFactionId].capitalNodeId};render();requestAnimationFrame(()=>toast('저장된 캠페인을 불러왔습니다.'))",'load toast')
-          ro("if(ar){selected={kind:'army',id:ar.id};drawer=null;toast('군단이 편성되었습니다.');render()}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}","if(ar){selected={kind:'army',id:ar.id};drawer=null;render();requestAnimationFrame(()=>toast('군단이 편성되었습니다.'))}else toast('병력·식량·지휘관·명령력을 확인하세요.');return}",'form toast')
-          tail=r'''  if(a==='target-attack'||a==='target-move'){
-            const ar=armyId?state.armies[armyId]:selectedArmy();
-            if(!ar)return toast('먼저 대기 중인 군단을 선택하거나 편성하세요.');
-            if(ar.status!=='waiting')return toast('대기 중인 군단만 새 이동 명령을 받을 수 있습니다.');
-            targetMode={kind:a==='target-attack'?'attack':'move',armyId:ar.id};drawer=null;mobilePanelOpen=false;render();
-            requestAnimationFrame(()=>toast(a==='target-attack'?'공격할 거점을 지도에서 선택하세요.':'이동할 거점을 지도에서 선택하세요.'));return;
-          }
-          if(a==='open-transport'){const n=selectedNode();return n?openTransport(n):toast('내 거점을 선택하세요.');}
-          if(a==='open-scout'){return openScout(selectedNode());}
-          if(a==='open-diplomacy'){return openDiplomacy();}
-          if(a==='open-recruit-officer'){return openRecruitOfficer();}
-          if(a==='quick-production-selected'){const n=selectedNode();return n?issueQuick('production',n):toast('내 거점을 선택하세요.');}
-          if(a==='open-reinforce'||a==='open-reinforce-selected'){const ar=armyId?state.armies[armyId]:selectedArmy();return ar?openReinforce(ar.id):toast('보충할 대기 군단을 선택하세요.');}
-          if(a==='submit-transport'){
-            const commanderId=$('#transport-officer')?.value,destinationNodeId=$('#transport-target')?.value;
-            const cargo={food:Number($('#transport-food')?.value||0),troops:Number($('#transport-troops')?.value||0),money:Number($('#transport-money')?.value||0)};
-            const op=orderTransport(state,{factionId:state.playerFactionId,originNodeId:node,destinationNodeId,commanderId,cargo});
-            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`수송대 출발 · ${nodeName(destinationNodeId)}`))}else toast('수송 조건·자원·명령력을 확인하세요.');return;
-          }
-          if(a==='submit-scout'){
-            const officerId=$('#scout-officer')?.value,targetNodeId=$('#scout-target')?.value;
-            const op=orderScoutMission(state,{factionId:state.playerFactionId,originNodeId:node,targetNodeId,officerId});
-            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`정찰대 파견 · ${nodeName(targetNodeId)}`))}else toast('정찰 담당·경로·명령력을 확인하세요.');return;
-          }
-          if(a==='submit-diplomacy'){
-            const officerId=$('#dip-officer')?.value,targetFactionId=$('#dip-target')?.value,proposal=$('#dip-proposal')?.value||'truce';
-            const op=orderDiplomacyMission(state,{factionId:state.playerFactionId,targetFactionId,originNodeId:node,officerId,proposal});
-            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`사절 파견 · ${factionName(targetFactionId)}`))}else toast('외교 담당·대상·명령력을 확인하세요.');return;
-          }
-          if(a==='submit-recruit-officer'){
-            const officerId=$('#recruit-officer')?.value,targetOfficerId=$('#recruit-target')?.value;
-            const op=orderRecruitOfficerMission(state,{factionId:state.playerFactionId,originNodeId:node,officerId,targetOfficerId});
-            if(op){drawer=null;render();requestAnimationFrame(()=>toast(`등용 사절 파견 · ${state.officers[targetOfficerId]?.name||'대상 장수'}`))}else toast('등용 담당·대상·명령력을 확인하세요.');return;
-          }
-          if(a==='submit-reinforce'){
-            const troops=Number($('#reinforce-troops')?.value||0),supplyPoints=Number($('#reinforce-supply')?.value||0);
-            const ok=reinforceArmy(state,{factionId:state.playerFactionId,armyId,troops,supplyPoints});
-            if(ok){drawer=null;render();requestAnimationFrame(()=>toast('군단 보충을 완료했습니다.'))}else toast('주둔 자원·군단 상태·명령력을 확인하세요.');return;
-          }
-          }
-          function actionError(err){console.error(err);toast(`명령 오류: ${err?.message||err}`)}
-          document.addEventListener('click',e=>{const btn=e.target.closest('[data-action]');if(btn){if(btn.disabled)return;Promise.resolve(handleAction(btn)).catch(actionError);return}const card=e.target.closest('[data-event-node]');if(card?.dataset.eventNode)focusNode(card.dataset.eventNode);});
-          document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(targetMode){targetMode=null;render();requestAnimationFrame(()=>toast('목표 선택을 취소했습니다.'));return}if(drawer){drawer=null;render();return}if(mobilePanelOpen||showRightPanel){mobilePanelOpen=false;showRightPanel=false;render();}}});
-          window.addEventListener('resize',()=>{const map=$('#map-scroll');if(map&&window.innerWidth<760)map.style.scrollBehavior='auto'});
-          render();
-          '''
-          p.write_text(prefix+tail,encoding='utf-8')
-          PY
+      - name: Recover and repair durable V2 UI sources
+        run: python3 validation-receipt/.github/scripts/repair-v2-sources.py
 
       - name: Syntax and repository regression tests
         shell: bash
@@ -145,13 +74,13 @@ jobs:
           node --check e2e/v2-final.spec.mjs
           npm test
 
-      - name: Install Playwright and run Chrome V2 E2E
-        shell: bash
-        run: |
-          npm install --no-save @playwright/test@1.55.0
-          npx playwright test e2e/v2-final.spec.mjs --project=chrome-desktop --project=chrome-tablet --project=chrome-iphone
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.55.0
 
-      - name: Upload browser traces on failure
+      - name: Run real Chrome V2 E2E
+        run: npx playwright test e2e/v2-final.spec.mjs --project=chrome-desktop --project=chrome-tablet --project=chrome-iphone
+
+      - name: Upload browser evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -162,8 +91,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Publish verified repaired UI source to V2 branch
+      - name: Publish verified V2 UI sources
         if: success()
+        id: publish
         shell: bash
         run: |
           set -euo pipefail
@@ -174,8 +104,9 @@ jobs:
             git commit -m 'V2: publish verified playable UI sources [skip ci]'
             git push origin HEAD:feature/strategy-core-v2
           fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Stage clean V2 Pages artifact
+      - name: Stage clean Pages artifact
         if: success()
         shell: bash
         run: |
@@ -200,13 +131,13 @@ jobs:
         with:
           enablement: true
 
-      - name: Upload V2 Pages artifact
+      - name: Upload Pages artifact
         if: success()
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
-      - name: Deploy V2 Pages
+      - name: Deploy Pages
         if: success()
         id: deployment
         uses: actions/deploy-pages@v4
@@ -215,14 +146,15 @@ jobs:
         if: always()
         shell: bash
         env:
-          FEATURE_SHA: ${{ steps.feature.outputs.sha }}
+          FEATURE_SHA: ${{ steps.candidate.outputs.sha }}
+          PUBLISHED_SHA: ${{ steps.publish.outputs.sha }}
           JOB_STATUS: ${{ job.status }}
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
           cd validation-receipt
           git pull --ff-only origin main
-          printf 'status=%s\npage_url=%s\nfeature_sha=%s\nrun_id=%s\n' "$JOB_STATUS" "$PAGE_URL" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
+          printf 'status=%s\npage_url=%s\nfeature_sha=%s\npublished_sha=%s\nrun_id=%s\n' "$JOB_STATUS" "$PAGE_URL" "$FEATURE_SHA" "$PUBLISHED_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- .github/strategy-core-v2-status.txt
