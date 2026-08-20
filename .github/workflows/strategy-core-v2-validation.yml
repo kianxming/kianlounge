@@ -1,32 +1,87 @@
-name: Strategy Core V2 validation
+name: Strategy Core V2 playable validation
 
 on:
+  push:
+    branches:
+      - feature/strategy-core-v2
   pull_request:
     branches:
       - feature/wano-web-vertical-slice
-    paths:
-      - 'src/v2/**'
-      - 'tests/v2-*.test.mjs'
-      - 'docs/STRATEGY_CORE_V2_*.md'
-      - 'docs/DESIGN_CONTRACT.md'
-      - '.github/workflows/strategy-core-v2-validation.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  core:
+  core-and-ui:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Syntax check V2 core
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Materialize exact V2 UI sources
         run: |
-          node --check src/v2/world/graph.js
-          node --check src/v2/core/operations.js
-          node --check src/v2/core/engine.js
-          node --check src/v2/data/wano-network.js
-      - name: Run V2 strategy-core tests
-        run: node --test tests/v2-strategy-core.test.mjs
-      - name: Run repository regression suite
+          set -euo pipefail
+          mkdir -p src/v2/ui
+          gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js
+          gzip -dc .build/v2.css.gz > v2.css
+      - name: Syntax check Strategy Core V2 and playable UI
+        run: |
+          set -euo pipefail
+          find src/v2 -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check src/data.js
+          node --check src/assets.js
+          node --check e2e/v2-final.spec.mjs
+      - name: Run Strategy Core V2 and repository regression tests
         run: npm test
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.55.0
+      - name: Run real Chrome V2 E2E on desktop, tablet and iPhone viewport
+        run: npx playwright test e2e/v2-final.spec.mjs --project=chrome-desktop --project=chrome-tablet --project=chrome-iphone
+      - name: Publish materialized UI source to branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/strategy-core-v2'
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- src/v2/ui/app.js v2.css; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- src/v2/ui/app.js v2.css
+            git commit -m 'V2: materialize verified playable UI sources [skip ci]'
+            git push origin HEAD:feature/strategy-core-v2
+          fi
+      - name: Upload V2 browser traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-e2e-artifacts-${{ github.run_id }}
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+      - name: Stage V2 Pages artifact
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp v2.html _site/index.html
+          cp v2.html v2.css _site/
+          cp -R src assets _site/
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload V2 Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy V2 Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#314a57"/><stop offset="1" stop-color="#121d25"/></linearGradient>
+ <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8b6739"/><stop offset="1" stop-color="#3f2a19"/></linearGradient>
+ <linearGradient id="stone"><stop stop-color="#77786a"/><stop offset="1" stop-color="#353a36"/></linearGradient>
+ <filter id="drop"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#000" flood-opacity=".65"/></filter>
+</defs>
+<symbol id="op-port" viewBox="0 0 100 100"><g filter="url(#drop)"><path d="M8 72h84v12H8z" fill="#60472c"/><path d="M20 58h54v18H20z" fill="url(#wood)"/><path d="M34 47h28v13H34z" fill="url(#roof)"/><path d="M73 25v48" stroke="#c3a16a" stroke-width="4"/><path d="M76 29q14 8 16 23q-12-7-16-4z" fill="#cfd6c8"/><path d="M6 87q20-8 40 0t48 0" fill="none" stroke="#6aa0b0" stroke-width="5"/></g></symbol>
+<symbol id="op-gate" viewBox="0 0 100 100"><g filter="url(#drop)"><path d="M13 75h74v13H13z" fill="#4f514b"/><path d="M20 38h60v40H20z" fill="url(#stone)"/><path d="M34 50h32v28H34z" fill="#171b18"/><path d="M15 34h70l-8-12H23z" fill="url(#roof)"/><path d="M25 18h50l-9-9H34z" fill="#3a5160"/></g></symbol>
+<symbol id="op-pass" viewBox="0 0 100 100"><g filter="url(#drop)"><path d="M4 80L30 25l19 31L66 11l30 69z" fill="#414a3d" stroke="#8c8060" stroke-width="2"/><path d="M30 80q13-27 25-10q11 14 20-13" fill="none" stroke="#c0a66d" stroke-width="7" stroke-linecap="round"/></g></symbol>
+<symbol id="op-forest" viewBox="0 0 100 100"><g filter="url(#drop)"><path d="M8 84h84v8H8z" fill="#443522"/><g fill="#244735" stroke="#71805b" stroke-width="1"><path d="M20 78l13-40 13 40z"/><path d="M38 80l16-55 17 55z"/><path d="M59 79l14-43 14 43z"/><circle cx="27" cy="40" r="12"/><circle cx="54" cy="28" r="15"/><circle cx="73" cy="41" r="13"/></g></g></symbol>
+<symbol id="op-junction" viewBox="0 0 100 100"><g filter="url(#drop)"><ellipse cx="50" cy="82" rx="38" ry="11" fill="#5a4d36"/><path d="M50 78V30M48 37H18M51 50h31" stroke="#8e6c3b" stroke-width="6" stroke-linecap="round"/><path d="M12 29h39l-8-9H20zM48 43h42l-9-9H57z" fill="#b69a65" stroke="#4b3520" stroke-width="2"/></g></symbol>
+<symbol id="op-strait" viewBox="0 0 100 100"><g filter="url(#drop)"><path d="M6 80q16-13 32 0t31 0t25 0" fill="none" stroke="#75a9bd" stroke-width="7"/><path d="M11 57l20-41 18 37-8 18H17zM61 65l19-46 15 46z" fill="#45504a" stroke="#8d846c" stroke-width="2"/><path d="M50 69l12-20 9 20z" fill="#53625b"/></g></symbol>
+<symbol id="mini-soldier" viewBox="0 0 24 24"><circle cx="12" cy="6" r="4" fill="currentColor"/><path d="M7 12q5-5 10 0v9H7z" fill="currentColor"/><path d="M12 11v10M7 15h10" stroke="#d7bd7b" stroke-width="1.2"/></symbol>
+<symbol id="convoy" viewBox="0 0 50 30"><rect x="8" y="8" width="25" height="13" rx="2" fill="#846035"/><path d="M13 8v-5h15v5" fill="#b99352"/><circle cx="13" cy="24" r="5" fill="#29231b" stroke="#b99553"/><circle cx="31" cy="24" r="5" fill="#29231b" stroke="#b99553"/><path d="M34 13h10l4 5h-14z" fill="#5b4934"/></symbol>
+</svg>
