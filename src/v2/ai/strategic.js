@@ -51,8 +51,14 @@ function commanderProfile(state,army,factionProfile){
   return p;
 }
 
-function enemyStrengthAtNode(state,factionId,nodeId){
-  const garrison=Math.max(0,state.graph.nodes[nodeId]?.garrisonTroops||0);
+function settlementAtNode(state,nodeId){
+  return Object.values(state.settlements||{}).find(s=>s.nodeId===nodeId||s.id===nodeId)||null;
+}
+
+export function enemyStrengthAtNode(state,factionId,nodeId){
+  const settlement=settlementAtNode(state,nodeId);
+  const legacyGarrison=Math.max(0,state.graph.nodes[nodeId]?.garrisonTroops||0);
+  const garrison=Math.max(legacyGarrison,settlement?.troops||0);
   const field=Object.values(state.armies).filter(a=>
     a.factionId!==factionId&&hostile(state,factionId,a.factionId)&&a.currentNodeId===nodeId&&a.status!=='destroyed'
   ).reduce((s,a)=>s+(a.troops||0),0);
@@ -65,10 +71,13 @@ function projectedSupplyRequirement(army,route,profile){
   return Math.ceil(daily*campaignDays*(.82+profile.logistics*.38));
 }
 
-function targetValue(node){
+function targetValue(node,state){
   if(Number.isFinite(node.strategicValue))return node.strategicValue;
-  if(node.type==='base')return 30;
-  if(node.type==='port')return 26;
+  const settlement=settlementAtNode(state,node.id);
+  const development=settlement?.development||0;
+  const economicBonus=Math.min(14,development*.12+(settlement?.market||0)*.05);
+  if(node.type==='base')return 30+economicBonus;
+  if(node.type==='port')return 26+economicBonus;
   return 10;
 }
 
@@ -80,14 +89,14 @@ function candidateScore(state,army,target,route,profile,inactivityMonths){
   const supplyRatio=(army.supplies??0)/Math.max(1,supplyNeed);
   const bias=state.factions?.[army.factionId]?.aiTargetBias?.[target.id]||0;
 
-  let score=targetValue(target)+bias;
+  let score=targetValue(target,state)+bias;
   score+=profile.aggression*34;
   score+=profile.opportunism*Math.min(28,Math.max(-10,(ratio-0.65)*22));
   score-=route.days*(.32+profile.caution*.72);
   score-=Math.max(0,1.05-ratio)*profile.caution*36;
   score-=Math.max(0,1-supplyRatio)*profile.logistics*45;
   score+=Math.min(18,inactivityMonths*3.5);
-  return {score,ratio,supplyNeed,supplyRatio};
+  return {score,ratio,supplyNeed,supplyRatio,enemyStrength:enemy};
 }
 
 function viableTargets(state,factionId){
@@ -135,7 +144,7 @@ export function planFactionMonth(state,factionId,{maxOrders=null}={}){
     const op=createArmyMarchOperation(state,{
       armyId:army.id,destinationNodeId:best.target.id,objective:'attack',
       doctrine:{enemyContact:'engage',postObjective:'siege',retreatMorale:18+Math.round(best.profile.caution*18)},
-      payload:{plannedTurn:state.turn,targetScore:Number(best.detail.score.toFixed(2)),projectedSupplyNeed:best.detail.supplyNeed}
+      payload:{plannedTurn:state.turn,targetScore:Number(best.detail.score.toFixed(2)),projectedSupplyNeed:best.detail.supplyNeed,estimatedEnemyStrength:best.detail.enemyStrength}
     });
     orders.push(op);reservedTargets.add(best.target.id);
   }
