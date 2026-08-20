@@ -17,7 +17,7 @@ export function edgeTravelDays(edge,{terrain=1,weather=1,load=1,formation=1,mobi
 
 export function shortestRoute(graph,startId,endId,options={}){
   if(!graph.nodes[startId]||!graph.nodes[endId])return null;
-  if(startId===endId)return {nodeIds:[startId],edgeIds:[],days:0};
+  if(startId===endId)return {nodeIds:[startId],edgeIds:[],edgeDays:[],days:0};
 
   const dist=new Map([[startId,0]]),prev=new Map(),unvisited=new Set(Object.keys(graph.nodes));
   while(unvisited.size){
@@ -33,19 +33,19 @@ export function shortestRoute(graph,startId,endId,options={}){
       const weight=edgeTravelDays(edge,options.travelModifiers?.(edge,cur,link.to)||{});
       const nd=best+weight;
       if(nd<(dist.get(link.to)??Infinity)){
-        dist.set(link.to,nd);prev.set(link.to,{from:cur,edgeId:link.edgeId});
+        dist.set(link.to,nd);prev.set(link.to,{from:cur,edgeId:link.edgeId,days:weight});
       }
     }
   }
   if(!prev.has(endId))return null;
-  const nodeIds=[endId],edgeIds=[];
+  const nodeIds=[endId],edgeIds=[],edgeDays=[];
   let cur=endId;
   while(cur!==startId){
     const p=prev.get(cur);if(!p)return null;
-    edgeIds.push(p.edgeId);nodeIds.push(p.from);cur=p.from;
+    edgeIds.push(p.edgeId);edgeDays.push(p.days);nodeIds.push(p.from);cur=p.from;
   }
-  nodeIds.reverse();edgeIds.reverse();
-  return {nodeIds,edgeIds,days:dist.get(endId)};
+  nodeIds.reverse();edgeIds.reverse();edgeDays.reverse();
+  return {nodeIds,edgeIds,edgeDays,days:dist.get(endId)};
 }
 
 export function nearestReachableNode(graph,startId,candidateIds,options={}){
