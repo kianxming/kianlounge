@@ -1,14 +1,18 @@
 import { advanceOperationsOneDay } from './operations.js';
+import { processArmyContacts, advanceBattlesOneDay } from '../domain/battles.js';
+import { advanceArmySupplyOneDay } from '../domain/supply.js';
 
 export const STRATEGIC_WINDOW_DAYS=30;
 
-export function createStrategyState({graph,officers={},armies={},factions={},seed=1,allied=null}={}){
+export function createStrategyState({graph,officers={},armies={},factions={},seed=1,allied=null,hostile=null}={}){
   return {
     version:'strategy-core-v2',seed,day:0,turn:1,phase:'command',executionDaysRemaining:0,
     graph,officers:structuredClone(officers),armies:structuredClone(armies),factions:structuredClone(factions),
-    operations:{},battles:{},events:[],reports:[],nextIds:{operation:1},
+    operations:{},battles:{},events:[],reports:[],nextIds:{operation:1,battle:1},
+    blockedSupplyEdges:[],intelligence:{detectedByFaction:{}},reactiveResponses:{},
     aiStats:{strategicPlans:0,reactiveTicks:0},
-    allied:allied||(()=>false)
+    allied:allied||(()=>false),
+    hostile:hostile||((a,b)=>a!==b)
   };
 }
 
@@ -28,7 +32,13 @@ export function advanceOneDay(state,{reactiveAI=null}={}){
   if(state.phase!=='execution')throw new Error(`Cannot advance a day during ${state.phase}`);
   if(state.executionDaysRemaining<=0)throw new Error('Execution window is already complete');
   state.day++;
+
+  // Daily strategic resolution order is explicit because arrival/contact/supply timing matters.
   advanceOperationsOneDay(state);
+  processArmyContacts(state);
+  advanceBattlesOneDay(state);
+  advanceArmySupplyOneDay(state);
+
   if(reactiveAI){reactiveAI(state);state.aiStats.reactiveTicks++}
   state.executionDaysRemaining--;
   if(state.executionDaysRemaining===0){
