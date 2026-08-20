@@ -1,4 +1,5 @@
 import {V3Sim} from '../core/sim.js';
+import {issueBattleCommand} from '../core/battle.js';
 import {FACILITIES,SPECIAL_ITEMS,nameOf} from '../core/config.js';
 import * as V from './views.js';
 
@@ -51,7 +52,7 @@ function render(){
 
 function bind(){
   document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{
-    const n=b.dataset.nav;ui.facility=null;ui.node=null;
+    if(b.disabled)return;const n=b.dataset.nav;ui.facility=null;ui.node=null;
     if(n==='village')sim.returnToVillage();
     else if(n==='world'||n==='sortie')sim.returnToWorld();
     else{ui.modal=n;render();}
@@ -72,6 +73,7 @@ function bind(){
     else if(sim.battle.selectedAlly){sim.setBattleFocus(sim.battle.selectedAlly,id);sim.battle.selectedAlly=null;}
     render();
   });
+  document.querySelectorAll('[data-command]').forEach(b=>b.onclick=()=>{if(issueBattleCommand(sim,b.dataset.command))render();});
   document.querySelectorAll('[data-persuade]').forEach(b=>b.onclick=()=>{notify(sim.persuade(b.dataset.persuade).msg);render();});
   document.querySelectorAll('[data-gift-item]').forEach(b=>b.onclick=()=>{ui.giftItem=b.dataset.giftItem;render();});
   document.querySelectorAll('[data-gift-char]').forEach(b=>b.onclick=()=>{const r=sim.giveTreasure(ui.giftItem,b.dataset.giftChar);if(r.ok)ui.giftItem=null;notify(r.msg);render();});
@@ -81,6 +83,7 @@ function bind(){
 
 function notify(msg){ui.toast=msg;clearTimeout(notify.t);notify.t=setTimeout(()=>{ui.toast='';render();},1500);}
 function saveGame(silent=false){try{localStorage.setItem(SAVE_KEY,JSON.stringify(sim.snapshot()));if(!silent)notify('저장했습니다.');return true;}catch{if(!silent)notify('저장에 실패했습니다.');return false;}}
+function finishBattleScene(){if(sim.battle?.finished)sim.battle=null;sim.returnToWorld();saveGame(true);}
 
 function act(e){
   const a=e.currentTarget.dataset.action;
@@ -101,8 +104,8 @@ function act(e){
   else if(a==='info'){const s=sim.settlements[ui.node];notify(`${s.name} · 병력 ${s.troops.toLocaleString()} · ${s.chars.map(nameOf).join(', ')||'이름 있는 캐릭터 없음'}`);}
   else if(a==='dispatch'){if(sim.dispatch(ui.sortie,[...ui.chars],ui.troops)){ui.sortie=null;ui.chars.clear();saveGame(true);}else notify('출정 편성을 확인해주세요.');}
   else if(a==='battle-view')sim.startBattle();
-  else if(a==='battle-auto'){sim.autoResolveEncounter();saveGame(true);}
-  else if(a==='battle-done'){sim.returnToWorld();saveGame(true);}
+  else if(a==='battle-auto'){sim.autoResolveEncounter();sim.battle=null;saveGame(true);}
+  else if(a==='battle-done')finishBattleScene();
   else if(a==='enter'){sim.returnToVillage();ui.node=null;}
   render();
 }
