@@ -1,12 +1,10 @@
-# validation-candidate: 2e1c64a2fc654d0b626acbd157685a3c103cbd34
+# validation-candidate: d44cf147497544268ca1e84636bea0840236a1e3
 name: Strategy Core V2 validation
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/strategy-core-v2-validation.yml'
+    branches: [main]
+    paths: ['.github/workflows/strategy-core-v2-validation.yml']
   workflow_dispatch:
 
 permissions:
@@ -20,18 +18,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: feature/strategy-core-v2
-
       - name: Capture V2 SHA
         id: feature
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
       - name: Checkout main for validation receipt
         uses: actions/checkout@v4
         with:
           ref: main
           path: validation-receipt
-
       - name: Record validation start
         shell: bash
         env:
@@ -44,33 +39,20 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/strategy-core-v2-status.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Record Strategy Core V2 validation start"
-            git push origin HEAD:main
-          fi
-
+          if ! git diff --cached --quiet; then git commit -m "[skip ci] Record Strategy Core V2 validation start"; git push origin HEAD:main; fi
       - name: Syntax check V2 core
         run: |
-          node --check src/v2/world/graph.js
-          node --check src/v2/core/operations.js
-          node --check src/v2/core/engine.js
-          node --check src/v2/core/save.js
-          node --check src/v2/data/wano-network.js
-          node --check src/v2/data/wano-settlements.js
-          node --check src/v2/domain/supply.js
-          node --check src/v2/domain/battles.js
-          node --check src/v2/domain/settlements.js
-          node --check src/v2/domain/sieges.js
-          node --check src/v2/domain/invariants.js
-          node --check src/v2/ai/reactive.js
-          node --check src/v2/ai/strategic.js
-
+          for f in \
+            src/v2/world/graph.js \
+            src/v2/core/operations.js src/v2/core/engine.js src/v2/core/save.js \
+            src/v2/data/wano-network.js src/v2/data/wano-settlements.js src/v2/data/wano-scenario.js \
+            src/v2/domain/supply.js src/v2/domain/battles.js src/v2/domain/settlements.js src/v2/domain/sieges.js src/v2/domain/invariants.js \
+            src/v2/domain/diplomacy.js src/v2/domain/commands.js src/v2/domain/missions.js src/v2/domain/onepiece.js src/v2/domain/recovery.js src/v2/domain/transports.js \
+            src/v2/ai/reactive.js src/v2/ai/strategic.js src/v2/ai/theater.js src/v2/ai/director.js; do node --check "$f"; done
       - name: Run V2 strategy-core tests
-        run: node --test tests/v2-strategy-core.test.mjs tests/v2-battle-supply.test.mjs tests/v2-invariants.test.mjs tests/v2-strategic-ai.test.mjs tests/v2-save-load.test.mjs tests/v2-siege-settlement.test.mjs tests/v2-system-integration.test.mjs
-
+        run: node --test tests/v2-*.test.mjs
       - name: Run repository regression suite
         run: npm test
-
       - name: Record validation result
         if: always()
         shell: bash
@@ -83,7 +65,4 @@ jobs:
           git pull --ff-only origin main
           printf 'status=%s\nfeature_sha=%s\nrun_id=%s\n' "$JOB_STATUS" "$FEATURE_SHA" "$GITHUB_RUN_ID" > .github/strategy-core-v2-status.txt
           git add .github/strategy-core-v2-status.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "[skip ci] Record Strategy Core V2 validation result"
-            git push origin HEAD:main
-          fi
+          if ! git diff --cached --quiet; then git commit -m "[skip ci] Record Strategy Core V2 validation result"; git push origin HEAD:main; fi
