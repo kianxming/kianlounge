@@ -1,4 +1,4 @@
-import { CHARACTERS } from '../../data.js';
+import { CHARACTERS, SKILLS } from '../../data.js';
 
 export const GRID={w:18,h:13};
 export const FACILITIES={
@@ -46,6 +46,28 @@ export const START={luffy:[8,11],zoro:[5,11],sanji:[10,11],nami:[12,11],usopp:[3
 const KO={luffy:'루피',zoro:'조로',sanji:'상디',nami:'나미',usopp:'우솝',chopper:'쵸파',robin:'로빈',franky:'프랑키',law:'로',king:'킹',queen:'퀸',jack:'잭',ulti:'울티',page_one:'페이지원',kaido:'카이도'};
 export const coreOf=id=>CHARACTERS.find(c=>c.id===id)||{};
 export const nameOf=id=>KO[id]||coreOf(id).name||id;
+export const skillName=id=>SKILLS?.[id]?.name||id;
+
+export const GENERAL_GEAR=[
+  {name:'튼튼한 장화',rank:1,cost:320},{name:'정교한 무기',rank:2,cost:680},{name:'강화 장비',rank:3,cost:1200},{name:'달인의 장비',rank:4,cost:2100}
+];
+
+export const SPECIAL_ITEMS={
+  fruit_mera:{id:'fruit_mera',name:'이글이글 열매',kind:'fruit',icon:'🍈',desc:'불을 다루는 특별한 악마의 열매'},
+  sword_shusui:{id:'sword_shusui',name:'슈스이',kind:'sword',icon:'⚔️',desc:'와노에 전해지는 명검'},
+  sword_ame:{id:'sword_ame',name:'아메노하바키리',kind:'sword',icon:'⚔️',desc:'코즈키 가문에 전해지는 명검'}
+};
+
+export const PRISON_PROFILES={
+  kaido:{loyalty:100,recruitBias:.15,escapeBias:1.4,faction:'beasts'},
+  king:{loyalty:98,recruitBias:.25,escapeBias:1.25,faction:'beasts'},
+  jack:{loyalty:92,recruitBias:.5,escapeBias:1.15,faction:'beasts'},
+  ulti:{loyalty:86,recruitBias:.65,escapeBias:1.2,faction:'beasts'},
+  page_one:{loyalty:82,recruitBias:.7,escapeBias:1.1,faction:'beasts'},
+  queen:{loyalty:74,recruitBias:.9,escapeBias:1.2,faction:'beasts'}
+};
+export const prisonProfile=id=>PRISON_PROFILES[id]||{loyalty:70,recruitBias:1,escapeBias:1,faction:'beasts'};
+
 export const key=(x,y)=>`${x},${y}`;
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const pick=a=>a[Math.floor(Math.random()*a.length)];
