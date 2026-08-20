@@ -156,6 +156,8 @@ export class V3Sim{
   }
 
   updateArmies(dt){
+    // A unit that has already created an encounter must not be processed as a fresh arrival again while the encounter/battle owns it.
+    if(this.encounter||this.mode==='battle')return;
     for(const a of this.armies){
       if(a.done)continue;
       a.progress+=dt/a.duration;if(a.progress<1)continue;
