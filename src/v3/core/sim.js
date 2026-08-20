@@ -1,5 +1,5 @@
-import {BASE_FACILITIES,PLAYER_IDS,START,FACILITIES,nameOf,coreOf,prefsOf} from './config.js';
-import {makeRoads,chooseFacility,canBuild,canBuildRoad,key} from './village.js';
+import {BASE_FACILITIES,PLAYER_IDS,START,FACILITIES,nameOf,coreOf,prefsOf,key} from './config.js';
+import {makeRoads,chooseFacility,canBuild,canBuildRoad} from './village.js';
 import {beginBattle,updateBattle} from './battle.js';
 
 const SCOUT_LAYOUTS={
