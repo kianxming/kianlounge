@@ -1,3 +1,3 @@
-status=running
+status=success
 feature_sha=2e1c64a2fc654d0b626acbd157685a3c103cbd34
 run_id=32323126216
