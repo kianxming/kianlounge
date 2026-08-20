@@ -1,17 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Wano Strategy Core V2 final playable surface',()=>{
-  test('monthly strategy loop, army march, events, save/load', async ({page})=>{
+test.describe('Wano Strategy Core V2 player experience',()=>{
+  test('map-first monthly loop, real target selection, camera stability and save/load', async ({page},testInfo)=>{
     const errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('console',m=>{ if(m.type()==='error') errors.push(m.text()) });
+    const phone=testInfo.project.name.includes('iphone');
     await page.goto('/v2.html');
     await expect(page.getByText('와노 전란기').first()).toBeVisible();
-    await expect(page.getByText('와노의 주도권을 장악하라')).toBeVisible();
-    await expect(page.getByRole('button',{name:'키비 주둔지'})).toBeVisible();
-
-    await page.getByRole('button',{name:'키비 주둔지'}).click();
-    await expect(page.getByText('주둔 병력')).toBeVisible();
+    await expect(page.getByText('와노의 주도권을 장악하라')).toHaveCount(0);
+    const kibi=page.getByRole('button',{name:'키비 주둔지',exact:true});
+    await expect(kibi).toBeVisible();
+    await kibi.click();
+    if(phone){
+      await expect(page.locator('.side-panel.left')).not.toHaveClass(/open/);
+      await page.locator('[data-action="toggle-left"]').click();
+      await expect(page.locator('.side-panel.left')).toHaveClass(/open/);
+    }
+    await expect(page.getByText('주둔 병력')).toBeAttached();
     await page.locator('[data-action="open-form-army"]').click();
     await expect(page.getByText('군단 편성').last()).toBeVisible();
     await page.locator('#form-troops').fill('1200');
@@ -20,15 +26,27 @@ test.describe('Wano Strategy Core V2 final playable surface',()=>{
     await expect(page.getByText(/군단이 편성되었습니다/)).toBeVisible();
 
     await page.locator('[data-action="target-attack"]').first().click();
-    await page.getByRole('button',{name:'바쿠라',exact:true}).click();
-    await expect(page.getByText(/바쿠라.*ETA|ETA.*일/).first()).toBeVisible({timeout:4000}).catch(()=>{});
+    await expect(page.locator('.target-hint')).toBeVisible();
+    const bakura=page.getByRole('button',{name:'바쿠라',exact:true});
+    await expect(bakura).toHaveClass(/target-valid/);
+    await bakura.click();
+    await expect(page.locator('.target-hint')).toHaveCount(0);
+    await expect(page.getByText(/바쿠라.*ETA|ETA.*일/).first()).toBeVisible();
+    await expect(page.locator('.list-item').filter({hasText:'바쿠라'}).first()).toBeAttached();
 
     await page.locator('[data-action="save"]').click();
     await expect(page.getByText('V2 캠페인을 저장했습니다.')).toBeVisible();
 
-    await page.locator('[data-action="speed"][data-speed="4"]').click();
+    const map=page.locator('#map-scroll');
+    await map.evaluate(el=>{el.scrollLeft=Math.min(180,el.scrollWidth-el.clientWidth);el.scrollTop=Math.min(160,el.scrollHeight-el.clientHeight)});
+    const before=await map.evaluate(el=>({x:el.scrollLeft,y:el.scrollTop}));
     await page.locator('[data-action="commit-month"]').click();
-    await expect(page.getByText('30일 실행').first()).toBeVisible();
+    await page.waitForTimeout(850);
+    const during=await map.evaluate(el=>({x:el.scrollLeft,y:el.scrollTop}));
+    expect(Math.abs(during.x-before.x)).toBeLessThanOrEqual(3);
+    expect(Math.abs(during.y-before.y)).toBeLessThanOrEqual(3);
+
+    await page.locator('[data-action="speed"][data-speed="4"]').click();
     const report=page.locator('.report-overlay.show');
     await expect(report).toBeVisible({timeout:20000});
     await expect(report.getByText(/월간 보고/).first()).toBeVisible();
@@ -38,26 +56,24 @@ test.describe('Wano Strategy Core V2 final playable surface',()=>{
     await page.locator('[data-action="load"]').click();
     await expect(page.getByText('저장된 캠페인을 불러왔습니다.')).toBeVisible();
     await expect(page.getByText('1턴 · 0일째')).toBeVisible();
-
     expect(errors).toEqual([]);
   });
 
-  test('mobile map remains usable and command sheet is touchable', async ({page},testInfo)=>{
+  test('iphone map zooms and selection does not auto-cover the battlefield', async ({page},testInfo)=>{
     test.skip(!testInfo.project.name.includes('iphone'));
     await page.goto('/v2.html');
-    const kibi=page.getByRole('button',{name:'키비 주둔지'});
-    await kibi.tap();
-    await expect(page.locator('.side-panel.left.open')).toBeVisible();
-    const map=page.locator('#map-scroll');
-    const dims=await map.evaluate(el=>({sw:el.scrollWidth,cw:el.clientWidth,sh:el.scrollHeight,ch:el.clientHeight}));
-    const viewport=await page.evaluate(()=>({iw:window.innerWidth,doc:document.documentElement.scrollWidth,body:document.body.scrollWidth}));
-    expect(dims.cw).toBeLessThanOrEqual(viewport.iw+1);
-    expect(viewport.doc).toBeLessThanOrEqual(viewport.iw+1);
-    expect(viewport.body).toBeLessThanOrEqual(viewport.iw+1);
-    expect(dims.sw).toBeGreaterThan(dims.cw);
-    expect(dims.sh).toBeGreaterThan(dims.ch);
+    const map=page.locator('#map-scroll'),space=page.locator('#map-space');
+    const before=await space.evaluate(el=>el.getBoundingClientRect().width);
+    await page.locator('[data-action="map-zoom-in"]').click();
+    const after=await space.evaluate(el=>el.getBoundingClientRect().width);
+    expect(after).toBeGreaterThan(before+100);
+
+    await page.getByRole('button',{name:'키비 주둔지',exact:true}).tap();
+    await expect(page.locator('.side-panel.left')).not.toHaveClass(/open/);
+    await expect(map).toBeVisible();
     await page.locator('[data-action="toggle-left"]').tap();
+    await expect(page.locator('.side-panel.left')).toHaveClass(/open/);
     await page.locator('[data-action="toggle-left"]').tap();
-    await expect(page.locator('.side-panel.left.open')).toBeVisible();
+    await expect(page.locator('.side-panel.left')).not.toHaveClass(/open/);
   });
 });

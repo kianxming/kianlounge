@@ -70,3 +70,46 @@ button,input,select{font:inherit;color:inherit} button{cursor:pointer}
   .top-actions .mini-btn{flex:0 0 auto;padding:6px 7px}
   .top-actions .mini-btn:nth-child(n+5){display:inline-flex}
 }
+
+
+/* V2 map-first mobile UX correction. */
+.map-space{position:relative;flex:none}
+.node{border:0;background:transparent;color:inherit;padding:10px 12px;cursor:pointer;pointer-events:auto;min-width:78px;min-height:82px}
+.node .node-label{display:block;pointer-events:none}
+.node.target-valid{z-index:10;filter:drop-shadow(0 0 10px #ffd25a)}
+.node.target-valid:before{content:"";position:absolute;inset:3px;border:2px solid #f3c85f;border-radius:16px;animation:targetGlow .8s ease-in-out infinite alternate;background:#f3c85f14}
+.node.target-invalid{opacity:.32;filter:grayscale(.65)}
+@keyframes targetGlow{from{box-shadow:0 0 3px #f4ca5b55}to{box-shadow:0 0 18px #f4ca5bdd}}
+.target-hint{position:absolute;z-index:18;left:50%;top:10px;transform:translateX(-50%);display:flex;align-items:center;gap:9px;max-width:calc(100% - 210px);padding:8px 10px;border:1px solid #d3a448;border-radius:9px;background:#171109ed;box-shadow:0 8px 24px #000a;color:#f6d68d}
+.target-hint span{font-size:10px;color:#c7b98f}.target-hint button{border:1px solid #805a29;background:#27180e;border-radius:6px;padding:5px 8px;color:#f6d68d}
+.map-toolbar button{min-width:38px}
+.battle-focus{position:absolute;z-index:9;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid #e06a43;border-radius:999px;padding:5px 9px;background:#2b0e0ce8;color:#ffd2a5;box-shadow:0 0 18px #e14d3199;animation:battleBob .75s ease-in-out infinite alternate}
+.battle-focus.selected{border-color:#ffd270;box-shadow:0 0 28px #ffb849cc}.battle-clash{font-size:20px;line-height:1}.battle-mini{font-size:9px;font-weight:800;white-space:nowrap}
+@keyframes battleBob{to{transform:translate(-50%,calc(-50% - 4px))}}
+.map-wrap.targeting .battle-focus{pointer-events:none;opacity:.45}
+.battle-hud{position:absolute;z-index:17;right:12px;top:12px;width:min(310px,calc(100% - 24px));padding:10px 12px;border:1px solid #a95536;border-radius:10px;background:#100c0bea;box-shadow:0 12px 30px #000c;backdrop-filter:blur(8px)}
+.battle-close{position:absolute;right:7px;top:6px;border:0;background:transparent;font-size:20px;color:#bcae91}.battle-hud-title{font-weight:900;color:#f0c27f;padding-right:24px;margin-bottom:8px}.battle-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}.battle-vs>div{display:flex;flex-direction:column;gap:2px}.battle-vs>div:last-child{text-align:right}.battle-vs b{font-size:11px;color:#d9cdb4}.battle-vs strong{font-size:18px;color:#fff0c5}.battle-vs span{font-size:9px;color:#a8a391}.battle-vs i{font-style:normal;font-weight:900;color:#d05d3d}.battle-loss{margin-top:7px;padding-top:6px;border-top:1px solid #4b3427;font-size:10px;color:#d5aa8e}
+
+@media(max-width:760px){
+  :root{--top:46px;--bottom:56px}
+  .app-shell{grid-template-rows:var(--top) minmax(0,1fr) var(--bottom)}
+  .topbar{padding:3px 5px;gap:4px}.brand-title{font-size:14px}.turnbox{padding:3px 5px}.turn-main{font-size:9px}.top-actions{gap:3px}.top-actions .mini-btn{padding:5px 6px;font-size:9px}
+  .side-panel.left{bottom:var(--bottom);height:min(34dvh,300px);padding:6px;transform:translateY(105%);border-radius:12px 12px 0 0}
+  .side-panel.left.open{transform:none}.side-panel.left:before{display:none}
+  .side-panel.left .panel{margin-bottom:6px}.side-panel.left .panel-h{padding:6px 8px;font-size:11px}.side-panel.left .panel-b{padding:7px}.side-panel.left .stat{padding:5px 6px}.side-panel.left .stat b{font-size:11px}
+  .map-stage{width:1440px;height:1150px}
+  .map-toolbar{top:6px;left:6px;right:6px;gap:3px;overflow-x:auto;max-width:calc(100% - 12px);scrollbar-width:none}.map-toolbar::-webkit-scrollbar{display:none}.map-toolbar button{padding:6px 7px;font-size:10px;min-width:34px;flex:0 0 auto}
+  .target-hint{left:6px;right:6px;top:42px;transform:none;max-width:none;padding:7px 8px;gap:6px}.target-hint b{font-size:11px}.target-hint span{display:none}
+  .node{padding:9px 11px;min-width:70px;min-height:72px}.node.base .node-art{width:68px;height:80px}.node .op-art{width:46px;height:46px}.node-label{font-size:8px;margin-top:-4px;padding:3px 5px}
+  .bottom-bar{padding:4px 5px;gap:3px}.cmd{min-width:54px;height:47px;padding:3px 2px}.cmd i{font-size:14px}.cmd span{font-size:8px}.commit{min-width:78px;font-size:10px;padding:4px 7px}
+  .battle-hud{top:auto;right:6px;left:6px;bottom:6px;width:auto;padding:8px 10px}.battle-hud-title{font-size:11px;margin-bottom:5px}.battle-vs strong{font-size:14px}.battle-loss{font-size:9px}
+  .battle-focus{padding:4px 7px}.battle-clash{font-size:17px}.battle-mini{font-size:8px}
+  .major-banner{top:43px;width:82%}.major-banner-inner{padding:6px 9px}.major-banner h2{font-size:14px}.major-banner p{font-size:9px}
+}
+
+
+/* V2 closed mobile panels must never steal map/footer touches. */
+@media(max-width:760px){
+  .side-panel.left{pointer-events:none;transform:translateY(115%)}
+  .side-panel.left.open{pointer-events:auto;transform:none}
+}
