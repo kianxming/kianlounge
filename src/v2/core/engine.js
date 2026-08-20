@@ -1,14 +1,16 @@
 import { advanceOperationsOneDay } from './operations.js';
 import { processArmyContacts, advanceBattlesOneDay } from '../domain/battles.js';
 import { advanceArmySupplyOneDay } from '../domain/supply.js';
+import { normalizeSettlements, advanceSettlementsOneDay, applyMonthlySettlementEconomy } from '../domain/settlements.js';
+import { startEligibleSieges, advanceSiegesOneDay } from '../domain/sieges.js';
 
 export const STRATEGIC_WINDOW_DAYS=30;
 
-export function createStrategyState({graph,officers={},armies={},factions={},seed=1,allied=null,hostile=null}={}){
+export function createStrategyState({graph,officers={},armies={},factions={},settlements={},seed=1,allied=null,hostile=null}={}){
   return {
     version:'strategy-core-v2',seed,day:0,turn:1,phase:'command',executionDaysRemaining:0,
     graph,officers:structuredClone(officers),armies:structuredClone(armies),factions:structuredClone(factions),
-    operations:{},battles:{},events:[],reports:[],nextIds:{operation:1,battle:1},
+    settlements:normalizeSettlements(settlements),operations:{},battles:{},sieges:{},events:[],reports:[],nextIds:{operation:1,battle:1,siege:1},
     blockedSupplyEdges:[],intelligence:{detectedByFaction:{}},reactiveResponses:{},
     aiStats:{strategicPlans:0,reactiveTicks:0},
     allied:allied||(()=>false),
@@ -33,15 +35,19 @@ export function advanceOneDay(state,{reactiveAI=null}={}){
   if(state.executionDaysRemaining<=0)throw new Error('Execution window is already complete');
   state.day++;
 
-  // Daily strategic resolution order is explicit because arrival/contact/supply timing matters.
+  // Resolution order is explicit: movement -> field contact -> siege attachment -> combat -> logistics.
   advanceOperationsOneDay(state);
   processArmyContacts(state);
+  startEligibleSieges(state);
   advanceBattlesOneDay(state);
+  advanceSiegesOneDay(state);
+  advanceSettlementsOneDay(state);
   advanceArmySupplyOneDay(state);
 
   if(reactiveAI){reactiveAI(state);state.aiStats.reactiveTicks++}
   state.executionDaysRemaining--;
   if(state.executionDaysRemaining===0){
+    applyMonthlySettlementEconomy(state);
     state.phase='report';
     const report=buildMonthlyReport(state);
     state.reports.push(report);
@@ -77,6 +83,10 @@ export function buildMonthlyReport(state){
     throughDay:state.day,
     activeOperationIds:active.map(o=>o.id),
     completedOperationIds:completed.map(o=>o.id),
-    ongoingBattleIds:Object.values(state.battles).filter(b=>b.status==='ongoing').map(b=>b.id)
+    ongoingBattleIds:Object.values(state.battles).filter(b=>b.status==='ongoing').map(b=>b.id),
+    ongoingSiegeIds:Object.values(state.sieges).filter(s=>s.status==='ongoing').map(s=>s.id),
+    settlements:Object.fromEntries(Object.values(state.settlements).map(s=>[s.id,{
+      ownerFactionId:s.ownerFactionId,money:s.money,food:s.food,troops:s.troops,development:s.development,morale:s.morale
+    }]))
   };
 }
