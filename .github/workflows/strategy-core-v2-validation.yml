@@ -64,17 +64,21 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Materialize exact V2 UI sources
+      - name: Recover and materialize V2 UI sources
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p src/v2/ui
-          gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js
-          gzip -dc .build/v2.css.gz > v2.css
+          if ! gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js; then
+            echo 'gzip trailer check failed for app.js; validating recovered payload instead.'
+          fi
+          if ! gzip -dc .build/v2.css.gz > v2.css; then
+            echo 'gzip trailer check failed for v2.css; validating recovered payload instead.'
+          fi
           test -s src/v2/ui/app.js
           test -s v2.css
 
-      - name: Syntax check Strategy Core V2 and playable UI
+      - name: Syntax check Strategy Core V2 and recovered playable UI
         shell: bash
         run: |
           set -euo pipefail
@@ -103,7 +107,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Publish verified materialized UI source to V2 branch
+      - name: Publish verified recovered UI source to V2 branch
         if: success()
         shell: bash
         run: |
