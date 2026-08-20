@@ -1,15 +1,34 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Wano Kairo V3 vertical slice',()=>{
-  test('village life, target-first sortie and separate battle scene',async({page})=>{
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+  test('village life, live scout, target-first sortie and character clash battle',async({page})=>{
+    const errors=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+
     await page.goto('/v3.html');
     await expect(page.getByText('꽃의 도시').first()).toBeVisible();
     await expect(page.locator('.chara')).toHaveCount(8);
+
+    // Kairosoft-like construction: roads can be laid repeatedly without a separate resource system.
+    const roadsBefore=await page.locator('.road').count();
     await page.getByRole('button',{name:/건설/}).click();
-    await expect(page.getByRole('button',{name:/음식점/})).toBeVisible();
-    await page.getByRole('button',{name:'×'}).click();
+    await page.getByRole('button',{name:/길/}).click();
+    await expect(page.locator('.road-cell').first()).toBeVisible();
+    await page.locator('.road-cell').first().click();
+    await expect(page.locator('.road')).toHaveCount(roadsBefore+1);
+    await page.getByRole('button',{name:/길 배치 종료/}).click();
+
+    // Scout means watching the enemy settlement live, not dispatching a scout unit.
     await page.getByRole('button',{name:/세계/}).click();
+    await page.getByRole('button',{name:/바쿠라/}).click();
+    await page.getByRole('button',{name:'정찰'}).click();
+    await expect(page.getByText('관찰 전용')).toBeVisible();
+    await expect(page.locator('.scout .chara.readonly')).toHaveCount(3);
+    await page.waitForFunction(()=>window.__V3__?.sim?.scout?.facilities?.some(f=>f.uses>0),null,{timeout:10000});
+    await page.getByRole('button',{name:/세계지도/}).click();
+
+    // Destination first -> unlimited character selection -> sortie.
     await page.getByRole('button',{name:/바쿠라/}).click();
     await page.getByRole('button',{name:'공격'}).click();
     await page.getByRole('button',{name:/루피/}).click();
@@ -19,15 +38,27 @@ test.describe('Wano Kairo V3 vertical slice',()=>{
     await page.getByRole('button',{name:'전투 보기'}).click();
     await expect(page.getByText('⚔ 전투')).toBeVisible();
     await expect(page.locator('.fighter.ally')).toHaveCount(2);
-    await expect(page.locator('.fighter.enemy').first()).toBeVisible();
+
+    // C control scheme: two characters can be assigned to the same named opponent.
+    const luffy=page.locator('.fighter.ally').filter({hasText:'루피'});
+    const zoro=page.locator('.fighter.ally').filter({hasText:'조로'});
+    const jack=page.locator('.fighter.enemy').filter({hasText:'잭'});
+    await luffy.click();await jack.click();
+    await zoro.click();await jack.click();
+    await expect(page.getByText(/2대1 협공|2:1 교전/).first()).toBeVisible();
+
     expect(errors).toEqual([]);
   });
 
-  test('iphone surface stays inside viewport',async({page},testInfo)=>{
+  test('iphone surface stays inside viewport with compact persistent UI',async({page},testInfo)=>{
     test.skip(!testInfo.project.name.includes('iphone'));
     await page.goto('/v3.html');
     const widths=await page.evaluate(()=>({inner:innerWidth,doc:document.documentElement.scrollWidth,body:document.body.scrollWidth}));
-    expect(widths.doc).toBeLessThanOrEqual(widths.inner+1);expect(widths.body).toBeLessThanOrEqual(widths.inner+1);
+    expect(widths.doc).toBeLessThanOrEqual(widths.inner+1);
+    expect(widths.body).toBeLessThanOrEqual(widths.inner+1);
     await expect(page.locator('.bottom-nav')).toBeVisible();
+    await page.getByRole('button',{name:/세계/}).tap();
+    await page.getByRole('button',{name:/바쿠라/}).tap();
+    await expect(page.locator('.mini.world-pop')).toBeVisible();
   });
 });
