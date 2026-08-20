@@ -70,13 +70,23 @@ jobs:
           set -euo pipefail
           mkdir -p src/v2/ui
           if ! gzip -dc .build/v2-app.js.gz > src/v2/ui/app.js; then
-            echo 'gzip trailer check failed for app.js; validating recovered payload instead.'
+            echo 'gzip trailer/body check failed for app.js; exporting recovered payload for repair.'
           fi
           if ! gzip -dc .build/v2.css.gz > v2.css; then
-            echo 'gzip trailer check failed for v2.css; validating recovered payload instead.'
+            echo 'gzip trailer/body check failed for v2.css; exporting recovered payload for repair.'
           fi
           test -s src/v2/ui/app.js
           test -s v2.css
+
+      - name: Export recovered UI payload for deterministic repair
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-recovered-sources-${{ github.run_id }}
+          path: |
+            src/v2/ui/app.js
+            v2.css
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Syntax check Strategy Core V2 and recovered playable UI
         shell: bash
